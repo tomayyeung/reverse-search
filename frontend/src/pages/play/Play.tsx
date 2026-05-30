@@ -8,7 +8,7 @@ import { Wrapper } from "@components/Wrapper";
 import { useParams } from "react-router-dom";
 import { API_URL } from "@/config";
 
-import { check } from "@wasm/frontend";
+import { check, load_puzzle as loadPuzzle } from "@wasm/frontend";
 
 export default function PlayPage() {
   const { puzzleId } = useParams();
@@ -32,6 +32,11 @@ export default function PlayPage() {
       .then((res) => res.json())
       .then((puzzle) => {
         console.log(puzzle);
+
+        // load puzzle for wasm
+        loadPuzzle(puzzle);
+
+        // then load puzzle for rendering
         setWidth(puzzle.width);
         setHeight(puzzle.height);
 
