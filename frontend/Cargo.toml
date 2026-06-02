@@ -1,0 +1,14 @@
+[package]
+name = "frontend"
+version = "0.1.0"
+edition = "2024"
+description = "Frontend package. Deals with gameplay logic."
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+reweave = { path = "../reweave" }
+
+serde-wasm-bindgen = "0.6.5"
+wasm-bindgen = "0.2.118"

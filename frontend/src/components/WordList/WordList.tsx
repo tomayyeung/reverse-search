@@ -86,12 +86,13 @@ export function PlayWordList({ words }: { words: Words }) {
 }
 
 export function CreateWordList({ words }: { words: string[] }) {
+  console.log(words);
+  console.log(typeof(words));
   const sortedWords = groupAndSort(words);
 
   return (
     <div className={styles.wordList}>
       {sortedWords.map(([length, words], idx) => {
-        // console.log(length, words);
         return <div key={idx}>
           <p className={styles.lengthLabel}>{length} letters</p>
           <p>{words.join(" ")}</p>

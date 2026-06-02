@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 
-import { Board, BLANK } from "@components/Board";
+import { Board, BLANK } from "@/components/Board";
 import { CreateWordList } from "@components/WordList";
 import { Wrapper } from "@components/Wrapper";
 
 import styles from "./Create.module.css";
-import { API_URL } from "src/config";
+import { API_URL } from "@/config";
+
+import { find } from "@wasm/frontend";
 
 export default function CreatePage() {
   const w = 3;
@@ -16,26 +18,22 @@ export default function CreatePage() {
   const [hardSet, setHardSet] = useState<boolean[]>(new Array(w * h).fill(true));
   const [words, setWords] = useState<string[]>([]);
 
+  // Update words on board letters change
   useEffect(() => {
     console.log("New board letters: '" + boardLetters + "'");
-    const updateWords = async () => {
-      if (wordListDone) {
-        return;
-      }
+    if (wordListDone) {
+      return;
+    }
 
-      fetch(`${API_URL}/api/find?width=${w}&height=${h}&letters=${boardLetters}`)
-        .then((res) => res.json())
-        .then((data) => {
-          // console.log(data)
-          setWords(data);
-        });
-    };
-
-    updateWords();
+    try {
+      setWords(find(w, h, boardLetters));
+    } catch (e) {
+      console.log(e);
+    }
   }, [boardLetters]);
 
   async function submitPuzzle(formData: FormData) {
-    const res = await fetch(`${API_URL}/api/puzzle`, {
+    const res = await fetch(`${API_URL}/api/create`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -50,8 +48,6 @@ export default function CreatePage() {
     });
 
     console.log(res);
-    // const data = await res.json();
-    // console.log(data);
   }
 
   return (

@@ -1,0 +1,3 @@
+[profile.dev]
+incremental = false
+debug = 0

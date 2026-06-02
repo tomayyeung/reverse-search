@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from "react";
 
-import { Board, BLANK } from "@components/Board";
+import { Board, BLANK } from "@/components/Board"
 import { PlayWordList } from "@components/WordList";
 import type { Words } from "@components/WordList";
 import { Wrapper } from "@components/Wrapper";
 import { useParams } from "react-router-dom";
-import { API_URL } from "src/config";
+import { API_URL } from "@/config";
+
+import { check, load_puzzle as loadPuzzle } from "@wasm/frontend";
 
 export default function PlayPage() {
   const { puzzleId } = useParams();
@@ -23,10 +25,17 @@ export default function PlayPage() {
   });
 
   useEffect(() => {
-    fetch(`${API_URL}/api/puzzle/${puzzleId}`)
+    const route = `${API_URL}/api/puzzle/${puzzleId}`;
+    console.log(route);
+    fetch(route)
       .then((res) => res.json())
       .then((puzzle) => {
         console.log(puzzle);
+
+        // load puzzle for wasm
+        loadPuzzle(puzzle);
+
+        // then load puzzle for rendering
         setWidth(puzzle.width);
         setHeight(puzzle.height);
 
@@ -43,18 +52,13 @@ export default function PlayPage() {
       });
   }, []);
 
+  // Update words on board letters change
   useEffect(() => {
-    // console.log("New board letters: '" + fromCreateBoardLetters(boardLetters, true) + "'");
     if (!puzzleFetched.current) {
       return;
     }
 
-    fetch(`${API_URL}/api/check-puzzle/${puzzleId}/letters/${boardLetters}`)
-      .then((res) => res.json())
-      .then((data) => {
-        // console.log(data)
-        setWords(data);
-      });
+    setWords(check(boardLetters));
   }, [boardLetters]);
 
   return (

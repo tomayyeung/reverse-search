@@ -1,0 +1,12 @@
+puzzles/
+target/
+
+frontend/dist/
+frontend/node_modules/
+frontend/pkg/
+
+wordlist/target
+wordlist/blacklist.txt
+wordlist/CSW24.txt
+
+reweave/.env

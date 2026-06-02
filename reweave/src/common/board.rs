@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use serde::{Deserialize, Serialize};
 
-use crate::words::*;
+use super::words::*;
 
 /// A cell of the board, indexed by its coordinates
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
@@ -15,8 +15,8 @@ pub struct Board {
     pub cells: Vec<Vec<Option<char>>>,
 }
 
-pub const BLANK: char = '_';
-pub const HOLE: char = '!';
+const BLANK: char = '_';
+const HOLE: char = '!';
 
 impl Board {
     /// Create a Board given a width, height, and a vector of characters
@@ -97,8 +97,6 @@ pub fn find_words(board: &Board, word_list: &Trie) -> Vec<String> {
             word_list,
         ));
     }
-
-    // println!("{:?}", out_hash_set);
 
     out_hash_set.into_iter().collect()
 }
