@@ -67,7 +67,6 @@ pub async fn create(inp: CreateInput) -> Result<(), ErrorResponse> {
     let puzzle = match puzzle::Puzzle::create(inp.width, inp.height, inp.letters, inp.words) {
         Ok(puzzle) => puzzle,
         Err(error) => {
-            // println!("Err: {}", msg);
             return Err(ErrorResponse(error));
         }
     };

@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 
-// import { Board, BLANK } from "@components/Board";
 import { Board, BLANK } from "@/components/Board"
 import { PlayWordList } from "@components/WordList";
 import type { Words } from "@components/WordList";
@@ -53,20 +52,13 @@ export default function PlayPage() {
       });
   }, []);
 
+  // Update words on board letters change
   useEffect(() => {
-    // console.log("New board letters: '" + fromCreateBoardLetters(boardLetters, true) + "'");
     if (!puzzleFetched.current) {
       return;
     }
 
     setWords(check(boardLetters));
-
-    // fetch(`${API_URL}/api/check-puzzle/${puzzleId}/letters/${boardLetters}`)
-    //   .then((res) => res.json())
-    //   .then((data) => {
-    //     // console.log(data)
-    //     setWords(data);
-    //   });
   }, [boardLetters]);
 
   return (

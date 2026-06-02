@@ -23,7 +23,6 @@ impl Board {
     /// Panics if the length of chars does not match width * height
     /// For an empty cell, pass in '_'
     pub fn create(width: usize, height: usize, chars: Vec<char>) -> Result<Self, String> {
-        // println!("{:?}", chars);
         assert_eq!(width * height, chars.len());
 
         let mut cells: Vec<Vec<Option<char>>> = Vec::new();
@@ -98,8 +97,6 @@ pub fn find_words(board: &Board, word_list: &Trie) -> Vec<String> {
             word_list,
         ));
     }
-
-    // println!("{:?}", out_hash_set);
 
     out_hash_set.into_iter().collect()
 }

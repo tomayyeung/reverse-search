@@ -19,7 +19,6 @@ fn get_words() -> &'static words::Trie {
 /// Given parameters to create a board, find all the words in it
 #[wasm_bindgen]
 pub fn find(width: u32, height: u32, letters: String) -> Result<Vec<String>, JsValue> {
-    println!("abc");
     let board =
         match board::Board::create(width as usize, height as usize, letters.chars().collect()) {
             Ok(board) => board,

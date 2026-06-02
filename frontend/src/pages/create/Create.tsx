@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 
-// import { Board, BLANK } from "@components/Board";
 import { Board, BLANK } from "@/components/Board";
 import { CreateWordList } from "@components/WordList";
 import { Wrapper } from "@components/Wrapper";
@@ -19,28 +18,18 @@ export default function CreatePage() {
   const [hardSet, setHardSet] = useState<boolean[]>(new Array(w * h).fill(true));
   const [words, setWords] = useState<string[]>([]);
 
+  // Update words on board letters change
   useEffect(() => {
     console.log("New board letters: '" + boardLetters + "'");
-    const updateWords = async () => {
-      if (wordListDone) {
-        return;
-      }
+    if (wordListDone) {
+      return;
+    }
 
-      try {
-        setWords(find(w, h, boardLetters));
-      } catch (e) {
-        console.log(e);
-      }
-
-      // fetch(`${API_URL}/api/find?width=${w}&height=${h}&letters=${boardLetters}`)
-      //   .then((res) => res.json())
-      //   .then((data) => {
-      //     console.log(data)
-      //     setWords(data.words);
-      //   });
-    };
-
-    updateWords();
+    try {
+      setWords(find(w, h, boardLetters));
+    } catch (e) {
+      console.log(e);
+    }
   }, [boardLetters]);
 
   async function submitPuzzle(formData: FormData) {
@@ -59,8 +48,6 @@ export default function CreatePage() {
     });
 
     console.log(res);
-    // const data = await res.json();
-    // console.log(data);
   }
 
   return (

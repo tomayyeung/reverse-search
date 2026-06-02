@@ -19,10 +19,7 @@ pub struct Words {
 pub struct Puzzle {
     pub width: usize,
     pub height: usize,
-    // /// Empty squares in the puzzle that the player knows will be empty
-    // pub holes: Vec<BoardCell>,
-    // /// Filled squares in the puzzle that the player is given at the start
-    // pub starting_letters: Vec<(BoardCell, char)>,
+    /// holes, blanks are stored in letters as !, _
     pub letters: String,
     pub words: HashSet<String>,
 }
@@ -57,11 +54,6 @@ impl Puzzle {
             extra: found_words_set.difference(&self.words).cloned().collect(),
         }
     }
-
-    // pub fn to_file(&self, path: &str) {
-    //     let file = File::create(path).unwrap();
-    //     serde_json::to_writer(file, &self).unwrap();
-    // }
 
     pub fn from_file(path: &str) -> Result<Self, Box<dyn Error>> {
         let data = File::open(path)?;
