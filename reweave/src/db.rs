@@ -1,4 +1,5 @@
 use sqlx::PgPool;
+use uuid::Uuid;
 use std::error::Error;
 use std::sync::OnceLock;
 use tokio::fs::File;
@@ -39,7 +40,7 @@ pub async fn get_puzzle(puzzle_id: &str) -> Option<Puzzle> {
         Puzzle::from_file(format!("../puzzles/{}", puzzle_id).as_str()).ok()
     } else {
         let Ok(puzzle_row) = sqlx::query_as::<_, PuzzleRow>("SELECT width, height, letters, words, name FROM puzzles WHERE id = $1")
-            .bind(puzzle_id.parse::<i32>().ok()?)
+            .bind(Uuid::parse_str(puzzle_id).ok()?)
             .fetch_one(get_puzzles_pool())
             .await
         else {
@@ -50,18 +51,18 @@ pub async fn get_puzzle(puzzle_id: &str) -> Option<Puzzle> {
     }
 }
 
-pub async fn insert_puzzle_into_db(puzzle: Puzzle) -> Result<i32, Box<dyn Error>> {
+pub async fn insert_puzzle_into_db(puzzle: Puzzle) -> Result<String, Box<dyn Error>> {
     if std::env::var("USE_LOCAL_FILES").is_ok() {
         let json_data = serde_json::to_string(&puzzle)?;
         let mut file = File::create(format!("../puzzles/{}", puzzle.name)).await?;
         file.write_all(json_data.as_bytes()).await?;
         file.flush().await?;
 
-        Ok(0) // unused, as we are working locally
+        Ok(String::new()) // unused, as we are working locally
     } else {
         let words: Vec<String> = puzzle.words.iter().cloned().collect();
 
-        let id: i32 = sqlx::query_scalar(
+        let uuid: Uuid = sqlx::query_scalar(
             "INSERT INTO puzzles (name, letters, width, height, words) VALUES ($1, $2, $3, $4, $5) RETURNING id",
         )
         .bind(puzzle.name)
@@ -72,6 +73,6 @@ pub async fn insert_puzzle_into_db(puzzle: Puzzle) -> Result<i32, Box<dyn Error>
         .fetch_one(get_puzzles_pool())
         .await?;
 
-        Ok(id)
+        Ok(uuid.to_string())
     }
 }

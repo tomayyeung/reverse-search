@@ -21,7 +21,7 @@ export default function CreatePage() {
   );
   const [words, setWords] = useState<string[]>([]);
 
-  const [puzzleId, setPuzzleId] = useState<number | undefined>();
+  const [puzzleId, setPuzzleId] = useState<string | undefined>();
   const [submitted, setSubmitted] = useState(false);
 
   // Update words on board letters change

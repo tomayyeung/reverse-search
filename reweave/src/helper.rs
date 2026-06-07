@@ -65,7 +65,7 @@ pub struct CreateInput {
 
 #[derive(Serialize)]
 pub struct CreateOutput {
-    id: i32,
+    id: String,
 }
 
 pub async fn create(inp: CreateInput) -> Result<CreateOutput, ErrorResponse> {
