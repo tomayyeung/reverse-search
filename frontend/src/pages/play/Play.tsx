@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 
 import { Board, BLANK } from "@/components/Board";
-import { WordList } from "@components/WordList";
+import { WordList, allWordsFound } from "@components/WordList";
 import type { Words } from "@components/WordList";
 import { Wrapper } from "@components/Wrapper";
 import { useParams } from "react-router-dom";
@@ -25,6 +25,8 @@ export default function PlayPage() {
     missing: [],
     extra: [],
   });
+
+  const [complete, setComplete] = useState(false);
 
   useEffect(() => {
     const route = `${API_URL}/api/puzzle/${puzzleId}`;
@@ -63,11 +65,18 @@ export default function PlayPage() {
     setWords(check(boardLetters));
   }, [boardLetters]);
 
+  useEffect(() => {
+    if (puzzleFetched.current && allWordsFound(words)) {
+      setComplete(true);
+    }
+  }, [words]);
+
   return (
     <main>
       <Wrapper>
         <div>
           <h3>Puzzle: {puzzleName}</h3>
+          <h4 style={{ display: complete ? "block" : "none" }}>Completed!</h4>
           <Board
             boardType="Play"
             filteringLetters={false}

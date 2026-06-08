@@ -23,8 +23,8 @@ Player is given a list of words and must reconstruct a board of letters that all
   - [ ] creating a puzzle records the user who made it
 - [ ] auth to backend - not everyone should be able to access backend, especially /api/create
 - [ ] ui/ux
-  - [ ] make create buttons look not shit
-  - [ ] popup on puzzle completion
+  - [ ] make everything look not shit
+  - [x] popup on puzzle completion
   - [ ] home/puzzles page
   - [ ] search for puzzles
   - [x] while creating, when done creating word list, clearing letters (making them not hard set) should update wordlist accordingly, as if you're playing
