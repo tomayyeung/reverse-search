@@ -37,7 +37,7 @@ pub fn get_puzzles_pool() -> &'static PgPool {
 
 pub async fn get_puzzle(puzzle_id: &str) -> Option<Puzzle> {
     if std::env::var("USE_LOCAL_FILES").is_ok() {
-        Puzzle::from_file(format!("../puzzles/{}", puzzle_id).as_str()).ok()
+        Puzzle::from_file(format!("../puzzles/{}.json", puzzle_id).as_str()).ok()
     } else {
         let Ok(puzzle_row) = sqlx::query_as::<_, PuzzleRow>("SELECT width, height, letters, words, name FROM puzzles WHERE id = $1")
             .bind(Uuid::parse_str(puzzle_id).ok()?)
