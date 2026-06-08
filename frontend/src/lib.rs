@@ -66,6 +66,24 @@ pub fn check(letters: String) -> Result<JsValue, JsValue> {
     };
 
     let found_words = board::find_words(&board, get_words());
-    serde_wasm_bindgen::to_value(&puzzle.compare_found_words(found_words))
-        .map_err(JsValue::from)
+    serde_wasm_bindgen::to_value(&puzzle.compare_found_words(found_words)).map_err(JsValue::from)
+}
+
+/// When creating and wordlist is complete, create a temporary puzzle so that clearing letters updates words
+#[wasm_bindgen]
+pub fn load_puzzle_for_create(width: u32, height: u32, words: Vec<String>) -> Result<JsValue, JsValue> {
+    let lock = get_lock();
+    let mut guard = lock.write().unwrap();
+
+    *guard = Some(
+        puzzle::Puzzle::create(
+            String::new(),
+            width as usize,
+            height as usize,
+            " ".repeat((width * height) as usize),
+            words.into_iter().collect(),
+        ).map_err(JsValue::from)?,
+    );
+
+    Ok(JsValue::from("successful load"))
 }

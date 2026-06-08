@@ -41,15 +41,21 @@ function mergeGroups(
 }
 
 export type Words = {
-  found: string[];
-  missing: string[];
-  extra: string[];
+  found?: string[];
+  missing?: string[];
+  extra?: string[];
+  /** used for create */
+  all?: string[];
 };
 
-export function PlayWordList({ words }: { words: Words }) {
-  const sortedFoundWords = groupAndSort(words.found);
-  const sortedMissingWords = groupAndSort(words.missing);
-  const sortedExtraWords = groupAndSort(words.extra);
+export function wordsAsStringArr(words: Words) {
+  return [...words.found ?? [], ...words.missing ?? [], ...words.extra ?? [], ...words.all ?? []];
+}
+
+function PlayWordList({ words }: { words: Words }) {
+  const sortedFoundWords = groupAndSort(words.found!);
+  const sortedMissingWords = groupAndSort(words.missing!);
+  const sortedExtraWords = groupAndSort(words.extra!);
 
   const grouped = mergeGroups(
     sortedFoundWords,
@@ -85,10 +91,8 @@ export function PlayWordList({ words }: { words: Words }) {
   );
 }
 
-export function CreateWordList({ words }: { words: string[] }) {
-  console.log(words);
-  console.log(typeof(words));
-  const sortedWords = groupAndSort(words);
+function CreateWordList({ words }: { words: Words }) {
+  const sortedWords = groupAndSort(words.all!);
 
   return (
     <div className={styles.wordList}>
@@ -100,4 +104,12 @@ export function CreateWordList({ words }: { words: string[] }) {
       })}
     </div>
   );
+}
+
+export function WordList({ listType, words}: { listType: "Create" | "Play", words: Words}) {
+  if (listType === "Create") {
+    return <CreateWordList words={words} />
+  } else {
+    return <PlayWordList words={words} />
+  }
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 
 import { Board, BLANK } from "@/components/Board";
-import { PlayWordList } from "@components/WordList";
+import { WordList } from "@components/WordList";
 import type { Words } from "@components/WordList";
 import { Wrapper } from "@components/Wrapper";
 import { useParams } from "react-router-dom";
@@ -28,7 +28,6 @@ export default function PlayPage() {
 
   useEffect(() => {
     const route = `${API_URL}/api/puzzle/${puzzleId}`;
-    console.log(route);
     fetch(route)
       .then((res) => res.json())
       .then((puzzle) => {
@@ -79,7 +78,7 @@ export default function PlayPage() {
             setBoardLetters={setBoardLetters}
           />
         </div>
-        <PlayWordList words={words} />
+        <WordList listType="Play" words={words} />
       </Wrapper>
     </main>
   );
