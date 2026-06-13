@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { CSSProperties } from "react";
 import styles from "./Board.module.css";
 
 export const BLANK = "_";
@@ -62,6 +63,7 @@ function Tile({
 export function Board({
   boardType,
   filteringLetters,
+  width,
   height,
   boardLetters,
   hardSet,
@@ -70,9 +72,15 @@ export function Board({
 }: BoardProps) {
   const [selectedTile, setSelectedTile] = useState(-1);
 
+  const boardDimension = Math.max(width, height);
+  const boardStyle = {
+    gridTemplateColumns: `repeat(${width}, 1fr)`,
+    "--board-dimension": boardDimension,
+  } as CSSProperties & Record<"--board-dimension", number>;
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      let idx = selectedTile;
+      const idx = selectedTile;
 
       if (idx === -1) {
         return;
@@ -123,9 +131,7 @@ export function Board({
   return (
     <div
       className={styles.board}
-      style={{
-        gridTemplateColumns: `repeat(${height}, 1fr)`,
-      }}
+      style={boardStyle}
     >
       {[...boardLetters].map((letter, i) => (
         <Tile

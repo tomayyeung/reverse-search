@@ -23,15 +23,17 @@ Player is given a list of words and must reconstruct a board of letters that all
   - [ ] creating a puzzle records the user who made it
 - [ ] auth to backend - not everyone should be able to access backend, especially /api/create
 - [ ] ui/ux
-  - [ ] make everything look not shit
   - [x] popup on puzzle completion
-  - [ ] home/puzzles page
-  - [ ] search for puzzles
   - [x] while creating, when done creating word list, clearing letters (making them not hard set) should update wordlist accordingly, as if you're playing
   - [x] puzzle not found page
   - [ ] create puzzles w/ different size
+  - [ ] after submitted created puzzle, "Play your puzzle" link shouldn't appear until there is a response from backend containing puzzle id
+  - [ ] home/puzzles page
+  - [ ] search for puzzles
+  - [ ] make everything look not shit
 - [ ] dictionary
   - [ ] words can be hovered (clicked?) to view dictionary definition
   - [ ] use external dictionary api (or have a dictionary db?)
 - [x] db changes
   - [x] for each puzzle, have a separate "name" column that stores a readable name, and generate a unique "id" - this allows puzzles of same name
+- [ ] modify puzzle

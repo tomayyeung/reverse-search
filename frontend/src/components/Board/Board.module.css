@@ -1,10 +1,10 @@
 .tile {
-  width: 120px;
+  width: var(--tile-size);
   aspect-ratio: 1 / 1;
-  margin: 10px;
+  /* border: max(1px, calc(var(--tile-size) * 0.0167)) solid black; */
   border: 2px solid black;
   border-radius: 5%;
-  padding: 10px;
+  padding: calc(var(--tile-size) * 0.0833);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -26,7 +26,7 @@
 }
 
 .tileLetter {
-  font-size: 72pt;
+  font-size: calc(var(--tile-size) * 0.8);
   font-weight: 700;
   color: #111;
   line-height: 1;
@@ -39,11 +39,26 @@
 
 
 .board {
+  --board-max-size: min(90vw, 80vh, 720px);
+  --board-padding: clamp(4px, calc(var(--board-max-size) * 0.0194), 14px);
+  --tile-gap: clamp(2px, calc(var(--board-max-size) / var(--board-dimension) * 0.05), 6px);
+  --tile-size: min(
+    120px,
+    calc(
+      (var(--board-max-size) - (2 * var(--board-padding)) - ((var(--board-dimension) - 1) * var(--tile-gap))) /
+        var(--board-dimension)
+    )
+  );
+
   font-family: Arial, Helvetica, sans-serif;
-  padding: 14px;
+  width: min-content;
+  max-width: var(--board-max-size);
+  max-height: var(--board-max-size);
+  padding: var(--board-padding);
   /* border: 4px solid #000; */
   display: grid;
-  gap: 6px;
+  gap: var(--tile-gap);
   grid-auto-rows: min-content;
   align-self: flex-start;
+  box-sizing: border-box;
 }

@@ -16,13 +16,13 @@ import {
 } from "@wasm/frontend";
 
 export default function CreatePage() {
-  const w = 3;
-  const h = 3;
+  const [width, setWidth] = useState(3);
+  const [height, setHeight] = useState(3);
 
   const [wordListDone, setWordListDone] = useState(false);
-  const [boardLetters, setBoardLetters] = useState("_".repeat(w * h));
+  const [boardLetters, setBoardLetters] = useState("_".repeat(width * height));
   const [hardSet, setHardSet] = useState<boolean[]>(
-    new Array(w * h).fill(true),
+    new Array(width * height).fill(true),
   );
   const [words, setWords] = useState<Words>({
     all: [],
@@ -53,12 +53,26 @@ export default function CreatePage() {
       if (wordListDone) {
         setWordsForPlay();
       } else {
-        setWords({ all: find(w, h, boardLetters) });
+        setWords({ all: find(width, height, boardLetters) });
       }
     } catch (e) {
       console.log(e);
     }
   }, [boardLetters, hardSet]);
+
+  function updateSize(formData: FormData) {
+    if (wordListDone) return;
+
+    // todo: add conformation popup, as board letters are cleared
+    const width = Number(formData.get("width"));
+    const height = Number(formData.get("height"));
+
+    setWidth(width);
+    setHeight(height);
+
+    setBoardLetters("_".repeat(width * height));
+    setHardSet(new Array(width * height).fill(true));
+  }
 
   async function submitPuzzle(formData: FormData) {
     if (submitted) return;
@@ -70,8 +84,8 @@ export default function CreatePage() {
       },
       body: JSON.stringify({
         name: formData.get("puzzle-name"),
-        width: w,
-        height: h,
+        width: width,
+        height: height,
         letters: hardSet
           .map((isSet, i) => (isSet ? boardLetters[i] : BLANK))
           .join(""),
@@ -90,16 +104,41 @@ export default function CreatePage() {
   return (
     <main>
       <Wrapper>
-        <Board
-          boardType="Create"
-          filteringLetters={wordListDone}
-          width={w}
-          height={h}
-          boardLetters={boardLetters}
-          hardSet={hardSet}
-          setBoardLetters={setBoardLetters}
-          setHardSet={setHardSet}
-        />
+        <div>
+          <form action={updateSize}>
+            <label htmlFor="width">Width:</label>
+            <input
+              type="number"
+              name="width"
+              id="width"
+              defaultValue={width}
+              min={2}
+              max={12}
+            />
+            <label htmlFor="height">Height:</label>
+            <input
+              type="number"
+              name="height"
+              id="height"
+              defaultValue={height}
+              min={2}
+              max={12}
+            />
+            <button type="submit">Update board size</button>
+          </form>
+
+          <Board
+            boardType="Create"
+            filteringLetters={wordListDone}
+            width={width}
+            height={height}
+            boardLetters={boardLetters}
+            hardSet={hardSet}
+            setBoardLetters={setBoardLetters}
+            setHardSet={setHardSet}
+          />
+        </div>
+
         <WordList
           listType={`${wordListDone ? "Play" : "Create"}`}
           words={words}
@@ -109,10 +148,10 @@ export default function CreatePage() {
       <button
         onClick={() => {
           if (!wordListDone) {
-            loadPuzzleForCreate(w, h, words.all!);
+            loadPuzzleForCreate(width, height, words.all!);
             setWordsForPlay();
           } else {
-            setWords({ all: find(w, h, boardLetters) });
+            setWords({ all: find(width, height, boardLetters) });
           }
           setWordListDone(!wordListDone);
         }}
