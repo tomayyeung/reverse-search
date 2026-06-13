@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 
 import { Board, BLANK } from "@/components/Board";
 import { WordList, allWordsFound } from "@components/WordList";
@@ -12,7 +12,9 @@ import { check, load_puzzle as loadPuzzle } from "@wasm/frontend";
 export default function PlayPage() {
   const { puzzleId } = useParams();
 
-  const puzzleFetched = useRef(false);
+  const [puzzleFetched, setPuzzleFetched] = useState<boolean | undefined>(
+    undefined,
+  );
 
   const [boardLetters, setBoardLetters] = useState("");
   const [hardSet, setHardSet] = useState<boolean[]>([]);
@@ -35,30 +37,37 @@ export default function PlayPage() {
       .then((puzzle) => {
         console.log(puzzle);
 
-        // load puzzle for wasm
-        loadPuzzle(puzzle);
+        try {
+          // load puzzle for wasm
+          loadPuzzle(puzzle);
 
-        // then load puzzle for rendering
-        setPuzzleName(puzzle.name);
-        setWidth(puzzle.width);
-        setHeight(puzzle.height);
+          // then load puzzle for rendering
+          setPuzzleName(puzzle.name);
+          setWidth(puzzle.width);
+          setHeight(puzzle.height);
 
-        const initialLetters = puzzle.letters;
+          const initialLetters = puzzle.letters;
 
-        console.log(initialLetters);
+          console.log(initialLetters);
 
-        // intialize board w/ letters
-        // any initial letters means they are hard set
-        setBoardLetters(initialLetters);
-        setHardSet([...initialLetters].map((letter) => letter !== BLANK));
+          // intialize board w/ letters
+          // any initial letters means they are hard set
+          setBoardLetters(initialLetters);
+          setHardSet([...initialLetters].map((letter) => letter !== BLANK));
 
-        puzzleFetched.current = true;
+          setPuzzleFetched(true);
+        } catch {
+          const error: string = puzzle.error;
+          if (error.startsWith("invalid puzzle id")) {
+            setPuzzleFetched(false);
+          }
+        }
       });
   }, []);
 
   // Update words on board letters change
   useEffect(() => {
-    if (!puzzleFetched.current) {
+    if (!puzzleFetched) {
       return;
     }
 
@@ -66,17 +75,19 @@ export default function PlayPage() {
   }, [boardLetters]);
 
   useEffect(() => {
-    if (puzzleFetched.current && allWordsFound(words)) {
+    if (puzzleFetched && allWordsFound(words)) {
       setComplete(true);
     }
   }, [words]);
 
-  return (
-    <main>
-      <Wrapper>
-        <div>
-          <h3>Puzzle: {puzzleName}</h3>
-          <h4 style={{ display: complete ? "block" : "none" }}>Completed!</h4>
+  function getMain(fetchedStatus: boolean | undefined) {
+    switch (fetchedStatus) {
+      case undefined:
+        return <p>Loading puzzle...</p>;
+      case false:
+        return <p>Puzzle not found</p>;
+      default:
+        return (
           <Board
             boardType="Play"
             filteringLetters={false}
@@ -86,6 +97,17 @@ export default function PlayPage() {
             hardSet={hardSet}
             setBoardLetters={setBoardLetters}
           />
+        );
+    }
+  }
+
+  return (
+    <main>
+      <Wrapper>
+        <div>
+          <h3>Puzzle: {puzzleName}</h3>
+          <h4 style={{ display: complete ? "block" : "none" }}>Completed!</h4>
+          {getMain(puzzleFetched)}
         </div>
         <WordList listType="Play" words={words} />
       </Wrapper>

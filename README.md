@@ -28,7 +28,7 @@ Player is given a list of words and must reconstruct a board of letters that all
   - [ ] home/puzzles page
   - [ ] search for puzzles
   - [x] while creating, when done creating word list, clearing letters (making them not hard set) should update wordlist accordingly, as if you're playing
-  - [ ] puzzle not found page
+  - [x] puzzle not found page
   - [ ] create puzzles w/ different size
 - [ ] dictionary
   - [ ] words can be hovered (clicked?) to view dictionary definition
