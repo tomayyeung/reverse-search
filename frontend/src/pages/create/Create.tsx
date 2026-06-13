@@ -170,12 +170,20 @@ export default function CreatePage() {
         <button type="submit">Submit puzzle</button>
       </form>
 
-      <Link
-        style={{ display: `${submitted ? "block" : "none"}` }}
-        to={{ pathname: `/play/${puzzleId}` }}
-      >
-        Play your puzzle!
-      </Link>
+      {submitted ? (
+        puzzleId === undefined ? (
+          <p>Creating puzzle...</p>
+        ) : (
+          <Link
+            style={{ display: `${submitted ? "block" : "none"}` }}
+            to={{ pathname: `/play/${puzzleId}` }}
+          >
+            Play your puzzle!
+          </Link>
+        )
+      ) : (
+        <></>
+      )}
     </main>
   );
 }

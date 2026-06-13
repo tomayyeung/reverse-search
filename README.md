@@ -26,10 +26,9 @@ Player is given a list of words and must reconstruct a board of letters that all
   - [x] popup on puzzle completion
   - [x] while creating, when done creating word list, clearing letters (making them not hard set) should update wordlist accordingly, as if you're playing
   - [x] puzzle not found page
-  - [ ] create puzzles w/ different size
-  - [ ] after submitted created puzzle, "Play your puzzle" link shouldn't appear until there is a response from backend containing puzzle id
-  - [ ] home/puzzles page
-  - [ ] search for puzzles
+  - [x] create puzzles w/ different size
+  - [x] after submitted created puzzle, "Play your puzzle" link shouldn't appear until there is a response from backend containing puzzle id
+  - [ ] homepage, existing puzzles/search page
   - [ ] make everything look not shit
 - [ ] dictionary
   - [ ] words can be hovered (clicked?) to view dictionary definition
