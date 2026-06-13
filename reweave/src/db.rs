@@ -54,11 +54,11 @@ pub async fn get_puzzle(puzzle_id: &str) -> Option<Puzzle> {
 pub async fn insert_puzzle_into_db(puzzle: Puzzle) -> Result<String, Box<dyn Error>> {
     if std::env::var("USE_LOCAL_FILES").is_ok() {
         let json_data = serde_json::to_string(&puzzle)?;
-        let mut file = File::create(format!("../puzzles/{}", puzzle.name)).await?;
+        let mut file = File::create(format!("../puzzles/{}.json", puzzle.name)).await?;
         file.write_all(json_data.as_bytes()).await?;
         file.flush().await?;
 
-        Ok(String::new()) // unused, as we are working locally
+        Ok(puzzle.name)
     } else {
         let words: Vec<String> = puzzle.words.iter().cloned().collect();
 
