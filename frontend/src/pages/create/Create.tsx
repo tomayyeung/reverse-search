@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 
 import { Board, BLANK } from "@/components/Board";
@@ -25,44 +25,19 @@ export default function CreatePage() {
   const [hardSet, setHardSet] = useState<boolean[]>(
     new Array(width * height).fill(true),
   );
-  const [words, setWords] = useState<Words>({
-    all: [],
-  });
-
   const [puzzleId, setPuzzleId] = useState<string | undefined>();
   const [submitted, setSubmitted] = useState(false);
   const [pendingSize, setPendingSize] = useState<
     { width: number; height: number } | undefined
   >();
 
-  /**
-   * Once letters are done being entered, user can change what is hard set. Get starting letters from board letters
-   * and hard set.
-   */
-  function setWordsForPlay() {
-    setWords(
-      check(
+  const words: Words = wordListDone
+    ? check(
         [...boardLetters]
           .map((letter, idx) => (hardSet[idx] ? letter : BLANK))
           .join(""),
-      ),
-    );
-  }
-
-  // Update words on board letters change, or hard set change when done creating word list
-  useEffect(() => {
-    console.log("New board letters: '" + boardLetters + "'");
-
-    try {
-      if (wordListDone) {
-        setWordsForPlay();
-      } else {
-        setWords({ all: find(width, height, boardLetters) });
-      }
-    } catch (e) {
-      console.log(e);
-    }
-  }, [boardLetters, hardSet]);
+      )
+    : { all: find(width, height, boardLetters) };
 
   function applySize(width: number, height: number) {
     setWidth(width);
@@ -163,10 +138,8 @@ export default function CreatePage() {
         onClick={() => {
           if (!wordListDone) {
             loadPuzzleForCreate(width, height, words.all!);
-            setWordsForPlay();
           } else {
             setHardSet(new Array(width * height).fill(true));
-            setWords({ all: find(width, height, boardLetters) });
           }
           setWordListDone(!wordListDone);
         }}

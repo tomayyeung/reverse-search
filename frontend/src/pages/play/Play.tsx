@@ -23,13 +23,11 @@ export default function PlayPage() {
   const [puzzleName, setPuzzleName] = useState("");
   const [w, setWidth] = useState(0);
   const [h, setHeight] = useState(0);
-  const [words, setWords] = useState<Words>({
-    found: [],
-    missing: [],
-    extra: [],
-  });
 
-  const [complete, setComplete] = useState(false);
+  const words: Words = puzzleFetched
+    ? check(boardLetters)
+    : { found: [], missing: [], extra: [] };
+  const complete = puzzleFetched && allWordsFound(words);
 
   useEffect(() => {
     const route = `${API_URL}/api/puzzle/${puzzleId}`;
@@ -64,22 +62,7 @@ export default function PlayPage() {
           }
         }
       });
-  }, []);
-
-  // Update words on board letters change
-  useEffect(() => {
-    if (!puzzleFetched) {
-      return;
-    }
-
-    setWords(check(boardLetters));
-  }, [boardLetters]);
-
-  useEffect(() => {
-    if (puzzleFetched && allWordsFound(words)) {
-      setComplete(true);
-    }
-  }, [words]);
+  }, [puzzleId]);
 
   function getMain(fetchedStatus: boolean | undefined) {
     switch (fetchedStatus) {
