@@ -31,7 +31,7 @@ Player is given a list of words and must reconstruct a board of letters that all
   - [x] after submitted created puzzle, "Play your puzzle" link shouldn't appear until there is a response from backend containing puzzle id
   - [ ] homepage, existing puzzles/search page
   - [x] make everything look not shit
-  - [ ] clear board button
+  - [x] clear board button
 - [ ] puzzle stores answer
   - [ ] give up button
 - [ ] dictionary

@@ -11,7 +11,7 @@ import { check, load_puzzle as loadPuzzle } from "@wasm/frontend";
 import { Popup } from "@/components/Popup";
 import styles from "./Play.module.css";
 
-type PendingReveal = "solution" | "random" | "selected";
+type PendingAction = "solution" | "random" | "selected" | "clear";
 
 export default function PlayPage() {
   const { puzzleId } = useParams();
@@ -20,6 +20,7 @@ export default function PlayPage() {
     undefined,
   );
 
+  const [startingLetters, setStartingLetters] = useState("");
   const [boardLetters, setBoardLetters] = useState("");
   const [hardSet, setHardSet] = useState<boolean[]>([]);
 
@@ -28,10 +29,11 @@ export default function PlayPage() {
   const [h, setHeight] = useState(0);
 
   const [answer, setAnswer] = useState("");
-  const [pendingReveal, setPendingReveal] = useState<PendingReveal | undefined>();
+  const [pendingAction, setPendingAction] = useState<PendingAction | undefined>();
   const [gaveUp, setGaveUp] = useState(false);
   const [usedHint, setUsedHint] = useState(false);
   const [selectedTile, setSelectedTile] = useState(-1);
+
 
   const words: Words = puzzleFetched
     ? check(boardLetters)
@@ -61,6 +63,7 @@ export default function PlayPage() {
 
           // intialize board w/ letters
           // any initial letters means they are hard set
+          setStartingLetters(initialLetters);
           setBoardLetters(initialLetters);
           setHardSet([...initialLetters].map((letter) => letter !== BLANK));
 
@@ -108,30 +111,34 @@ export default function PlayPage() {
     revealTile(idx);
   }
 
-  function getRevealPopupText(reveal: PendingReveal) {
-    switch (reveal) {
+  function getActionPopupText(action: PendingAction) {
+    switch (action) {
       case "solution":
         return "Reveal the full solution?";
       case "random":
         return "Reveal a random tile?";
       case "selected":
         return "Reveal the selected tile?";
+      case "clear":
+        return "Clear the whole board?";
     }
   }
 
-  function getRevealConfirmText(reveal: PendingReveal) {
-    switch (reveal) {
+  function getActionConfirmText(action: PendingAction) {
+    switch (action) {
       case "solution":
         return "Reveal solution";
       case "random":
         return "Reveal random tile";
       case "selected":
         return "Reveal selected tile";
+      case "clear":
+        return "Clear board"
     }
   }
 
-  function confirmReveal() {
-    switch (pendingReveal) {
+  function confirmAction() {
+    switch (pendingAction) {
       case "solution":
         setBoardLetters(answer);
         setGaveUp(true);
@@ -142,9 +149,12 @@ export default function PlayPage() {
       case "selected":
         revealTile(selectedTile);
         break;
+      case "clear":
+        setBoardLetters(startingLetters);
+        break;
     }
 
-    setPendingReveal(undefined);
+    setPendingAction(undefined);
   }
 
   function getMain(fetchedStatus: boolean | undefined) {
@@ -181,14 +191,14 @@ export default function PlayPage() {
                 <button
                   type="button"
                   className={styles.revealButton}
-                  onClick={() => setPendingReveal("solution")}
+                  onClick={() => setPendingAction("solution")}
                 >
                   Reveal solution
                 </button>
                 <button
                   type="button"
                   className={styles.revealButton}
-                  onClick={() => setPendingReveal("random")}
+                  onClick={() => setPendingAction("random")}
                 >
                   Reveal random tile
                 </button>
@@ -196,9 +206,17 @@ export default function PlayPage() {
                   type="button"
                   className={styles.revealButton}
                   disabled={selectedTile === -1}
-                  onClick={() => setPendingReveal("selected")}
+                  onClick={() => setPendingAction("selected")}
                 >
                   Reveal selected tile
+                </button>
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  disabled={selectedTile === -1}
+                  onClick={() => setPendingAction("clear")}
+                >
+                  Clear board
                 </button>
               </div>
             ) : (
@@ -221,13 +239,13 @@ export default function PlayPage() {
         <></>
       )}
 
-      {pendingReveal !== undefined && showRevealActions ? (
+      {pendingAction !== undefined && showRevealActions ? (
         <Popup
-          text={getRevealPopupText(pendingReveal)}
-          confirmText={getRevealConfirmText(pendingReveal)}
+          text={getActionPopupText(pendingAction)}
+          confirmText={getActionConfirmText(pendingAction)}
           cancelText="Cancel"
-          onConfirm={confirmReveal}
-          onCancel={() => setPendingReveal(undefined)}
+          onConfirm={confirmAction}
+          onCancel={() => setPendingAction(undefined)}
         />
       ) : (
         <></>
