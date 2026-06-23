@@ -24,7 +24,7 @@ Player is given a list of words and must reconstruct a board of letters that all
 - [ ] auth to backend - not everyone should be able to access backend, especially /api/create
 - [ ] ui/ux
   - [x] popup on puzzle completion
-    - [ ] with info - puzzle name, time
+    - [ ] with info - ~~puzzle name~~, time
   - [x] while creating, when done creating word list, clearing letters (making them not hard set) should update wordlist accordingly, as if you're playing
   - [x] puzzle not found page
   - [x] create puzzles w/ different size
@@ -32,8 +32,8 @@ Player is given a list of words and must reconstruct a board of letters that all
   - [ ] homepage, existing puzzles/search page
   - [x] make everything look not shit
   - [x] clear board button
-- [ ] puzzle stores answer
-  - [ ] give up button
+- [x] puzzle stores answer
+  - [x] give up button
 - [ ] dictionary
   - [ ] words can be hovered (clicked?) to view dictionary definition
   - [ ] use external dictionary api (or have a dictionary db?)
