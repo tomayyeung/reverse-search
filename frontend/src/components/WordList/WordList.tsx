@@ -439,10 +439,11 @@ export function WordList({
 
   async function selectWord(word: string) {
     const normalizedWord = word.toLowerCase();
+    const cachedDefinition = definitions[normalizedWord];
 
     setSelectedWord(normalizedWord);
 
-    if (definitions[normalizedWord]) return;
+    if (cachedDefinition && cachedDefinition.status !== "error") return;
 
     setDefinitions((currentDefinitions) => ({
       ...currentDefinitions,
