@@ -119,13 +119,25 @@ function WordButton({
 }: WordButtonProps) {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
-  const [popupPosition, setPopupPosition] = useState<PopupPosition | null>(null);
+  const [popupPosition, setPopupPosition] = useState<PopupPosition | null>(
+    null,
+  );
   const normalizedWord = word.toLowerCase();
   const definition = definitions[normalizedWord];
   const isSelected = selectedWord === normalizedWord;
 
   useEffect(() => {
     if (!isSelected) return;
+
+    function closeOnOutsideClick(event: PointerEvent) {
+      const target = event.target;
+
+      if (!(target instanceof Node)) return;
+      if (buttonRef.current?.contains(target)) return;
+      if (popupRef.current?.contains(target)) return;
+
+      onClose();
+    }
 
     function updatePopupPosition() {
       const button = buttonRef.current;
@@ -139,8 +151,11 @@ function WordButton({
       const viewportPadding = 12;
       const bottomTop = buttonRect.bottom + gap;
       const aboveTop = buttonRect.top - popupHeight - gap;
-      const hasBottomSpace = bottomTop + popupHeight <= window.innerHeight - viewportPadding;
-      const top = hasBottomSpace ? bottomTop : Math.max(viewportPadding, aboveTop);
+      const hasBottomSpace =
+        bottomTop + popupHeight <= window.innerHeight - viewportPadding;
+      const top = hasBottomSpace
+        ? bottomTop
+        : Math.max(viewportPadding, aboveTop);
       const left = Math.min(
         Math.max(viewportPadding, buttonRect.left),
         window.innerWidth - popupWidth - viewportPadding,
@@ -150,14 +165,16 @@ function WordButton({
     }
 
     updatePopupPosition();
+    document.addEventListener("pointerdown", closeOnOutsideClick);
     window.addEventListener("resize", updatePopupPosition);
     window.addEventListener("scroll", updatePopupPosition, true);
 
     return () => {
+      document.removeEventListener("pointerdown", closeOnOutsideClick);
       window.removeEventListener("resize", updatePopupPosition);
       window.removeEventListener("scroll", updatePopupPosition, true);
     };
-  }, [isSelected, definition]);
+  }, [isSelected, definition, onClose]);
 
   return (
     <span className={styles.wordWrapper}>
@@ -178,17 +195,32 @@ function WordButton({
             role="dialog"
             style={popupPosition ?? undefined}
           >
+            <div className={styles.definitionHeader}>
+              <p className={styles.definitionTitle}>{word}</p>
+              <button
+                type="button"
+                className={styles.definitionClose}
+                onClick={onClose}
+                aria-label="Close definition"
+              >
+                ✕
+              </button>
+            </div>
             {definition?.status === "loaded" ? (
               <div className={styles.definitionMeanings}>
                 {definition.meanings.map((meaning, meaningIndex) => (
                   <section key={`${meaning.partOfSpeech}-${meaningIndex}`}>
-                    <p className={styles.partOfSpeech}>{meaning.partOfSpeech}</p>
+                    <p className={styles.partOfSpeech}>
+                      {meaning.partOfSpeech}
+                    </p>
                     <ol>
-                      {meaning.definitions.map((definitionText, definitionIndex) => (
-                        <li key={`${definitionIndex}-${definitionText}`}>
-                          {definitionText}
-                        </li>
-                      ))}
+                      {meaning.definitions.map(
+                        (definitionText, definitionIndex) => (
+                          <li key={`${definitionIndex}-${definitionText}`}>
+                            {definitionText}
+                          </li>
+                        ),
+                      )}
                     </ol>
                   </section>
                 ))}
@@ -202,14 +234,6 @@ function WordButton({
                     : "Loading definition"}
               </span>
             )}
-            <button
-              type="button"
-              className={styles.definitionClose}
-              onClick={onClose}
-              aria-label="Close definition"
-            >
-              Close
-            </button>
           </div>,
           document.body,
         )}
@@ -310,7 +334,13 @@ function CreateWordList({
   );
 }
 
-export function WordList({ listType, words}: { listType: "Create" | "Play", words: Words}) {
+export function WordList({
+  listType,
+  words,
+}: {
+  listType: "Create" | "Play";
+  words: Words;
+}) {
   const [definitions, setDefinitions] = useState<DictionaryCache>({});
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
 
@@ -330,7 +360,9 @@ export function WordList({ listType, words}: { listType: "Create" | "Play", word
       const response = await fetch(
         `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(normalizedWord)}`,
       );
-      const data = await response.json() as DictionaryEntry[] | DictionaryEntry;
+      const data = (await response.json()) as
+        | DictionaryEntry[]
+        | DictionaryEntry;
 
       if (!Array.isArray(data) && data.title === NO_DEFINITION_TITLE) {
         setDefinitions((currentDefinitions) => ({
@@ -352,9 +384,10 @@ export function WordList({ listType, words}: { listType: "Create" | "Play", word
 
       setDefinitions((currentDefinitions) => ({
         ...currentDefinitions,
-        [normalizedWord]: definitionMeanings.length > 0
-          ? { status: "loaded", meanings: definitionMeanings }
-          : { status: "not-found" },
+        [normalizedWord]:
+          definitionMeanings.length > 0
+            ? { status: "loaded", meanings: definitionMeanings }
+            : { status: "not-found" },
       }));
     } catch {
       setDefinitions((currentDefinitions) => ({
@@ -373,8 +406,8 @@ export function WordList({ listType, words}: { listType: "Create" | "Play", word
   };
 
   if (listType === "Create") {
-    return <CreateWordList {...wordListProps} />
+    return <CreateWordList {...wordListProps} />;
   } else {
-    return <PlayWordList {...wordListProps} />
+    return <PlayWordList {...wordListProps} />;
   }
 }
