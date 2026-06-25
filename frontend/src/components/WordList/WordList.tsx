@@ -7,7 +7,11 @@ const NO_DEFINITION_TITLE = "No Definitions Found";
 
 type DefinitionState =
   | { status: "loading" }
-  | { status: "loaded"; meanings: DefinitionMeaning[] }
+  | {
+      status: "loaded";
+      meanings: DefinitionMeaning[];
+      pronunciation?: DefinitionPronunciation;
+    }
   | { status: "not-found" }
   | { status: "error" };
 
@@ -16,8 +20,17 @@ type DefinitionMeaning = {
   definitions: string[];
 };
 
+type DefinitionPronunciation = {
+  text?: string;
+  audio?: string;
+};
+
 type DictionaryEntry = {
   title?: string;
+  phonetics?: {
+    text?: string;
+    audio?: string;
+  }[];
   meanings?: {
     partOfSpeech?: string;
     definitions?: {
@@ -45,6 +58,27 @@ function getDefinitionMeanings(data: DictionaryEntry[]): DefinitionMeaning[] {
       ];
     }),
   );
+}
+
+function getPronunciation(
+  data: DictionaryEntry[],
+): DefinitionPronunciation | undefined {
+  const phonetics = data.flatMap((entry) => entry.phonetics ?? []);
+  const normalized = phonetics
+    .map(({ text, audio }) => ({
+      text,
+      audio: audio && audio.trim() !== "" ? audio : undefined,
+    }))
+    .filter(({ text, audio }) => text !== undefined || audio !== undefined);
+
+  return (
+    normalized.find(({ text, audio }) => text !== undefined && audio !== undefined) ??
+    normalized[0]
+  );
+}
+
+function playPronunciation(audio: string) {
+  void new Audio(audio).play();
 }
 
 function groupAndSort(words: string[]): [number, string[]][] {
@@ -207,24 +241,58 @@ function WordButton({
               </button>
             </div>
             {definition?.status === "loaded" ? (
-              <div className={styles.definitionMeanings}>
-                {definition.meanings.map((meaning, meaningIndex) => (
-                  <section key={`${meaning.partOfSpeech}-${meaningIndex}`}>
-                    <p className={styles.partOfSpeech}>
-                      {meaning.partOfSpeech}
-                    </p>
-                    <ol>
-                      {meaning.definitions.map(
-                        (definitionText, definitionIndex) => (
-                          <li key={`${definitionIndex}-${definitionText}`}>
-                            {definitionText}
-                          </li>
-                        ),
-                      )}
-                    </ol>
-                  </section>
-                ))}
-              </div>
+              <>
+                {definition.pronunciation && (
+                  <div className={styles.pronunciation}>
+                    {definition.pronunciation.text && (
+                      <span>{definition.pronunciation.text}</span>
+                    )}
+                    {definition.pronunciation.audio && (
+                      <button
+                        type="button"
+                        className={styles.audioButton}
+                        onClick={() =>
+                          playPronunciation(definition.pronunciation!.audio!)
+                        }
+                        aria-label="Play pronunciation"
+                      >
+                        <svg
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          aria-hidden="true"
+                          focusable="false"
+                        >
+                          <path d="M11 5 6 9H3v6h3l5 4V5Z" />
+                          <path d="M15.5 8.5a5 5 0 0 1 0 7" />
+                          <path d="M18.5 5.5a9 9 0 0 1 0 13" />
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                )}
+                <div className={styles.definitionMeanings}>
+                  {definition.meanings.map((meaning, meaningIndex) => (
+                    <section key={`${meaning.partOfSpeech}-${meaningIndex}`}>
+                      <p className={styles.partOfSpeech}>
+                        {meaning.partOfSpeech}
+                      </p>
+                      <ol>
+                        {meaning.definitions.map(
+                          (definitionText, definitionIndex) => (
+                            <li key={`${definitionIndex}-${definitionText}`}>
+                              {definitionText}
+                            </li>
+                          ),
+                        )}
+                      </ol>
+                    </section>
+                  ))}
+                </div>
+              </>
             ) : (
               <span>
                 {definition?.status === "not-found"
@@ -381,12 +449,13 @@ export function WordList({
       }
 
       const definitionMeanings = getDefinitionMeanings(data);
+      const pronunciation = getPronunciation(data);
 
       setDefinitions((currentDefinitions) => ({
         ...currentDefinitions,
         [normalizedWord]:
           definitionMeanings.length > 0
-            ? { status: "loaded", meanings: definitionMeanings }
+            ? { status: "loaded", meanings: definitionMeanings, pronunciation }
             : { status: "not-found" },
       }));
     } catch {

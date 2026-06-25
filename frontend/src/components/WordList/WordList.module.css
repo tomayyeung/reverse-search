@@ -97,6 +97,37 @@
   font-weight: 900;
 }
 
+.pronunciation {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: -0.2rem 0 0.65rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.audioButton {
+  min-height: 0;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.1rem 0.25rem;
+  background: transparent;
+  color: var(--text);
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.audioButton:hover {
+  transform: none;
+  opacity: 0.7;
+}
+
+.audioButton svg {
+  display: block;
+  width: 1rem;
+  height: 1rem;
+}
+
 .definitionMeanings section {
   margin-bottom: 0.85rem;
 }
