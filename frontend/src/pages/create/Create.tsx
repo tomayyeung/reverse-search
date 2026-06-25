@@ -80,7 +80,6 @@ export default function CreatePage() {
     })
       .then((res) => res.json())
       .then((data) => {
-        console.log(data);
         setPuzzleId(data.id);
       });
 
@@ -171,8 +170,8 @@ export default function CreatePage() {
       </div>
 
       {/* Post-submission info */}
-      {submitted ? (
-        puzzleId === undefined ? (
+      {submitted &&
+        (puzzleId === undefined ? (
           <p className={styles.status}>Creating puzzle...</p>
         ) : (
           <Link
@@ -181,13 +180,10 @@ export default function CreatePage() {
           >
             Play your puzzle!
           </Link>
-        )
-      ) : (
-        <></>
-      )}
+        ))}
 
       {/* Confirmation for updating board size */}
-      {pendingSize !== undefined ? (
+      {pendingSize !== undefined && (
         <Popup
           text="Changing puzzle size will clear your current work. Proceed anyway?"
           confirmText="Proceed"
@@ -198,8 +194,6 @@ export default function CreatePage() {
           }}
           onCancel={() => setPendingSize(undefined)}
         />
-      ) : (
-        <></>
       )}
     </main>
   );

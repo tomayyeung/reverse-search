@@ -53,7 +53,6 @@ impl Trie {
         };
 
         for word in words {
-            // println!("Adding word: {}", word);
             let mut curr = &mut this.root;
             for b in word.bytes() {
                 curr = curr.children[idx(b)].get_or_insert_with(|| Box::new(TrieNode::new()));

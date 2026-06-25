@@ -48,8 +48,6 @@ export default function PlayPage() {
     fetch(route)
       .then((res) => res.json())
       .then((puzzle) => {
-        console.log(puzzle);
-
         try {
           // load puzzle for wasm
           loadPuzzle(puzzle);
@@ -61,9 +59,7 @@ export default function PlayPage() {
 
           const initialLetters = puzzle.letters;
 
-          console.log(initialLetters);
-
-          // intialize board w/ letters
+          // initialize board w/ letters
           // any initial letters means they are hard set
           setStartingLetters(initialLetters);
           setBoardLetters(initialLetters);
@@ -239,13 +235,11 @@ export default function PlayPage() {
         <WordList listType="Play" words={words} />
       </Wrapper>
 
-      {complete && !gaveUp ? (
+      {complete && !gaveUp && (
         <Popup text="Congratulations! Puzzle completed." />
-      ) : (
-        <></>
       )}
 
-      {pendingAction !== undefined && showRevealActions ? (
+      {pendingAction !== undefined && showRevealActions && (
         <Popup
           text={getActionPopupText(pendingAction)}
           confirmText={getActionConfirmText(pendingAction)}
@@ -253,8 +247,6 @@ export default function PlayPage() {
           onConfirm={confirmAction}
           onCancel={() => setPendingAction(undefined)}
         />
-      ) : (
-        <></>
       )}
     </main>
   );

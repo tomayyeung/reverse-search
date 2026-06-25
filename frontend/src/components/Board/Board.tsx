@@ -111,7 +111,6 @@ export function Board({
 
       // Toggle hole when creating
       else if (e.key === " " && boardType === "Create") {
-        console.log("hole");
         // Whether filtering or not, we can put in a hole
         if (newChar === BLANK) newChar = HOLE;
         else if (newChar === HOLE) newChar = BLANK;

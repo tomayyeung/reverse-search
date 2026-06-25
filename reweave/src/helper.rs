@@ -98,7 +98,7 @@ pub struct LoadInput {
 
 pub async fn load_puzzle(inp: LoadInput) -> Result<puzzle::Puzzle, ErrorResponse> {
     match get_puzzle(&inp.puzzle_id).await {
-        Some(puzzle) => Ok(puzzle.clone()),
+        Some(puzzle) => Ok(puzzle),
         None => Err(ErrorResponse(format!(
             "invalid puzzle id: {}",
             &inp.puzzle_id

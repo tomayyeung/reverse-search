@@ -86,7 +86,7 @@ pub fn load_puzzle_for_create(
             height as usize,
             " ".repeat((width * height) as usize), // no starting letters needed
             words.into_iter().collect(),
-            String::new(), // no stored answer neede
+            String::new(), // no stored answer needed
         )
         .map_err(JsValue::from)?,
     );
