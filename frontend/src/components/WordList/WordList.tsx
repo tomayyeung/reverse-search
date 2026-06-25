@@ -11,6 +11,7 @@ type DefinitionState =
       status: "loaded";
       meanings: DefinitionMeaning[];
       pronunciation?: DefinitionPronunciation;
+      sourceUrls: string[];
     }
   | { status: "not-found" }
   | { status: "error" };
@@ -27,6 +28,7 @@ type DefinitionPronunciation = {
 
 type DictionaryEntry = {
   title?: string;
+  sourceUrls?: string[];
   phonetics?: {
     text?: string;
     audio?: string;
@@ -75,6 +77,14 @@ function getPronunciation(
     normalized.find(({ text, audio }) => text !== undefined && audio !== undefined) ??
     normalized[0]
   );
+}
+
+function getSourceUrls(data: DictionaryEntry[]): string[] {
+  const sourceUrls = data
+    .flatMap((entry) => entry.sourceUrls ?? [])
+    .filter((sourceUrl) => sourceUrl.trim() !== "");
+
+  return Array.from(new Set(sourceUrls));
 }
 
 function playPronunciation(audio: string) {
@@ -292,6 +302,21 @@ function WordButton({
                     </section>
                   ))}
                 </div>
+                {definition.sourceUrls.length > 0 && (
+                  <div className={styles.definitionSources}>
+                    <p>Source</p>
+                    {definition.sourceUrls.map((sourceUrl) => (
+                      <a
+                        key={sourceUrl}
+                        href={sourceUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {sourceUrl}
+                      </a>
+                    ))}
+                  </div>
+                )}
               </>
             ) : (
               <span>
@@ -450,12 +475,18 @@ export function WordList({
 
       const definitionMeanings = getDefinitionMeanings(data);
       const pronunciation = getPronunciation(data);
+      const sourceUrls = getSourceUrls(data);
 
       setDefinitions((currentDefinitions) => ({
         ...currentDefinitions,
         [normalizedWord]:
           definitionMeanings.length > 0
-            ? { status: "loaded", meanings: definitionMeanings, pronunciation }
+            ? {
+                status: "loaded",
+                meanings: definitionMeanings,
+                pronunciation,
+                sourceUrls,
+              }
             : { status: "not-found" },
       }));
     } catch {

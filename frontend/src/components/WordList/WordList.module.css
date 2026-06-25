@@ -157,6 +157,26 @@
   margin-bottom: 0;
 }
 
+.definitionSources {
+  margin-top: 0.9rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.65rem;
+  font-size: 0.8rem;
+}
+
+.definitionSources p {
+  margin: 0 0 0.25rem;
+  color: var(--text);
+  font-weight: 850;
+}
+
+.definitionSources a {
+  display: block;
+  overflow-wrap: anywhere;
+  font-weight: 700;
+  text-decoration-thickness: 1px;
+}
+
 .definitionClose {
   flex: 0 0 auto;
   min-height: 0;
