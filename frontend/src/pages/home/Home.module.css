@@ -2,7 +2,6 @@
   display: flex;
   height: auto;
   min-height: 0;
-  overflow: auto;
   padding-top: clamp(24px, 4vw, 48px);
   padding-bottom: clamp(32px, 5vw, 64px);
 }
@@ -43,48 +42,49 @@
   background: var(--surface);
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
-  gap: 1rem;
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
-.card {
-  display: flex;
-  min-height: 13rem;
-  flex-direction: column;
+.listItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 1rem;
+  align-items: center;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 1.1rem;
+  padding: 1rem 1.1rem;
   background: var(--surface);
-  box-shadow: var(--shadow-soft);
   color: inherit;
   text-decoration: none;
   transition:
     border-color 160ms ease,
-    transform 160ms ease,
-    box-shadow 160ms ease;
+    transform 160ms ease;
 }
 
-.card:hover {
+.listItem:hover {
   border-color: var(--accent);
-  box-shadow: var(--shadow);
   transform: translateY(-2px);
 }
 
-.cardHeader {
-  display: flex;
-  gap: 0.75rem;
-  align-items: start;
-  justify-content: space-between;
+.puzzleInfo {
+  min-width: 0;
 }
 
-.cardHeader h3 {
+.listItemHeader {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.listItemHeader h3 {
   margin: 0;
 }
 
-.cardHeader span,
+.listItemHeader span,
 .stats span {
   border-radius: 999px;
   padding: 0.25rem 0.55rem;
@@ -96,14 +96,14 @@
 }
 
 .description {
-  flex: 1;
-  margin: 0;
+  margin: 0.35rem 0 0;
 }
 
 .stats {
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+  justify-content: flex-end;
 }
 
 @media (max-width: 720px) {
@@ -119,5 +119,14 @@
   .sectionHeader {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .listItem {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .stats {
+    justify-content: flex-start;
   }
 }

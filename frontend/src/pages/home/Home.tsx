@@ -61,11 +61,6 @@ export default function HomePage() {
 
   return (
     <main className={styles.home}>
-      <p>
-        Browse existing puzzles, compare board size and starting-letter
-        coverage, then jump straight into play.
-      </p>
-
       <section className={styles.puzzleSection} aria-labelledby="puzzles-title">
         <div className={styles.sectionHeader}>
           <h2 id="puzzles-title">Puzzles</h2>
@@ -84,22 +79,24 @@ export default function HomePage() {
           </p>
         ) : null}
 
-        <div className={styles.grid}>
+        <div className={styles.list}>
           {puzzles.map((puzzle) => (
             <Link
               key={puzzle.id}
-              className={styles.card}
+              className={styles.listItem}
               to={{ pathname: `/play/${puzzle.id}` }}
             >
-              <div className={styles.cardHeader}>
-                <h3>{puzzle.name}</h3>
-                <span>
-                  {puzzle.width} x {puzzle.height}
-                </span>
+              <div className={styles.puzzleInfo}>
+                <div className={styles.listItemHeader}>
+                  <h3>{puzzle.name}</h3>
+                  <span>
+                    {puzzle.width} x {puzzle.height}
+                  </span>
+                </div>
+                <p className={styles.description}>
+                  {puzzle.description ?? "Custom description coming soon."}
+                </p>
               </div>
-              <p className={styles.description}>
-                {puzzle.description ?? "Custom description coming soon."}
-              </p>
               <div className={styles.stats}>
                 <span>{puzzle.givenPercent}% given</span>
                 <span>
