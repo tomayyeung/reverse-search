@@ -76,7 +76,7 @@
 .listItemHeader {
   display: flex;
   gap: 0.75rem;
-  align-items: baseline;
+  align-items: center;
   flex-wrap: wrap;
 }
 
@@ -86,6 +86,8 @@
 
 .listItemHeader span,
 .stats span {
+  display: inline-flex;
+  align-items: center;
   border-radius: 999px;
   padding: 0.25rem 0.55rem;
   background: var(--accent-soft);

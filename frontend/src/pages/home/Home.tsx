@@ -98,9 +98,8 @@ export default function HomePage() {
                 </p>
               </div>
               <div className={styles.stats}>
-                <span>{puzzle.givenPercent}% given</span>
                 <span>
-                  {puzzle.startingLetters}/{puzzle.totalCells} starting letters
+                  {puzzle.startingLetters}/{puzzle.totalCells} ({puzzle.givenPercent}%) starting letters
                 </span>
               </div>
             </Link>
