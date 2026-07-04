@@ -3,6 +3,7 @@
   - [ ] navbar (create, search, user)
   - [ ] list existing puzzles
   - [ ] /search page
+- update screenshots (as app changes, remove dev stuff, etc)
 - ui/ux
   - [x] popup on puzzle completion
     - [ ] with info - ~~puzzle name~~, time

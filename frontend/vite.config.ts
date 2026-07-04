@@ -17,7 +17,8 @@ export default defineConfig({
     alias: {
       "@": path.resolve(__dirname, "./src"),
       "@components": path.resolve(__dirname, "./src/components"),
-      "@wasm": path.resolve(__dirname, "./pkg")
+      "@wasm": path.resolve(__dirname, "./pkg"),
+      "@public": path.resolve(__dirname, "./public")
     },
   },
   server: {

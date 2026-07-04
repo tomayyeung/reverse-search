@@ -1,0 +1,90 @@
+.page {
+  width: min(900px, calc(100% - 32px));
+  gap: 2rem;
+  padding-top: clamp(24px, 4vw, 40px);
+  padding-bottom: clamp(32px, 5vw, 56px);
+}
+
+.header,
+.section {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.header {
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.header h1,
+.section h2 {
+  margin: 0;
+  color: var(--text);
+  letter-spacing: -0.04em;
+}
+
+.header p,
+.section p {
+  margin-bottom: 0;
+}
+
+.header h1 {
+  font-size: clamp(2.1rem, 5vw, 3.4rem);
+  line-height: 1;
+}
+
+.section h2 {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+}
+
+.steps {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding-left: 1.4rem;
+  color: var(--text-muted);
+}
+
+.steps li::marker {
+  color: var(--accent-strong);
+  font-weight: 900;
+}
+
+.screenshotContainer {
+  display: block;
+  gap: 0.5rem;
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.screenshotContainer h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+}
+
+.screenshotContainer p {
+  margin: 0;
+}
+
+.screenshotContainer img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  margin-top: 0.75rem;
+  border-radius: var(--radius-sm);
+}
+
+@media (max-width: 720px) {
+  .page {
+    width: min(100% - 20px, 900px);
+    padding-top: 18px;
+  }
+
+  .placeholderGrid {
+    grid-template-columns: 1fr;
+  }
+}

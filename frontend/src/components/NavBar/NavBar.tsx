@@ -18,7 +18,14 @@ export function NavBar() {
           >
             Puzzles
           </NavLink>
-          <span className={styles.placeholderLink}>How to play</span>
+          <NavLink
+            className={({ isActive }) =>
+              isActive ? `${styles.link} ${styles.active}` : styles.link
+            }
+            to="/how-to-play"
+          >
+            How to play
+          </NavLink>
           <span className={styles.placeholderLink}>Archive</span>
           <span className={styles.placeholderLink}>Stats</span>
           <NavLink
