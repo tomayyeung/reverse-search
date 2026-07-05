@@ -7,6 +7,10 @@ CREATE TABLE "puzzles" (
 	"name" text DEFAULT 'Unnamed puzzle' NOT NULL,
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
 	"answer" text NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now()
+	"created_at" timestamp with time zone DEFAULT now(),
+	"plays" integer DEFAULT 0,
+	"completions" integer DEFAULT 0,
+	"likes" integer DEFAULT 0,
+	"description" text DEFAULT 0
 );
 CREATE UNIQUE INDEX "puzzles_pkey" ON "puzzles" ("id");
