@@ -29,7 +29,7 @@ export default function HomePage() {
       setLoadError(undefined);
 
       try {
-        const response = await fetch(`${API_URL}/api/puzzles`);
+        const response = await fetch(`${API_URL}/api/puzzles?limit=24`);
         const data = await response.json();
 
         if (!response.ok) {

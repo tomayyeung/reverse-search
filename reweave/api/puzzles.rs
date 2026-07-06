@@ -1,8 +1,8 @@
 use vercel_runtime::{Error, Request, Response, ResponseBody, run, service_fn};
 
 use reweave::helper::{
-    cors_response, forbidden_origin_response, json_err_response, json_response, list_puzzles,
-    require_allowed_origin,
+    ListPuzzlesInput, cors_response, forbidden_origin_response, json_err_response, json_response,
+    list_puzzles, require_allowed_origin,
 };
 
 pub async fn handler(req: Request) -> Result<Response<ResponseBody>, Error> {
@@ -13,7 +13,16 @@ pub async fn handler(req: Request) -> Result<Response<ResponseBody>, Error> {
 
     match req.method().as_str() {
         "OPTIONS" => cors_response(204, "", &origin),
-        "GET" => json_response(list_puzzles().await, &origin),
+        "GET" => {
+            let params = if let Some(query) = req.uri().query() {
+                serde_urlencoded::from_str(query)
+                    .map_err(Box::<dyn std::error::Error + Send + Sync>::from)?
+            } else {
+                ListPuzzlesInput { limit: None }
+            };
+
+            json_response(list_puzzles(params).await, &origin)
+        }
         _ => json_err_response("Invalid method request", &origin),
     }
 }

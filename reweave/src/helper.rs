@@ -13,6 +13,8 @@ use crate::db::*;
 pub struct ErrorResponse(pub String);
 
 const ALLOWED_ORIGIN_ENV: &str = "ALLOWED_ORIGIN";
+const DEFAULT_PUZZLES_LIMIT: usize = 24;
+const MAX_PUZZLES_LIMIT: usize = 100;
 
 fn allowed_origin_from_request(req: &Request) -> Option<&str> {
     req.headers()
@@ -163,8 +165,22 @@ pub struct PuzzleSummary {
     description: Option<String>,
 }
 
-pub async fn list_puzzles() -> Result<Vec<PuzzleSummary>, ErrorResponse> {
-    let records = list_puzzle_records()
+#[derive(Deserialize)]
+pub struct ListPuzzlesInput {
+    pub limit: Option<usize>,
+}
+
+pub async fn list_puzzles(inp: ListPuzzlesInput) -> Result<Vec<PuzzleSummary>, ErrorResponse> {
+    let limit = inp.limit.unwrap_or(DEFAULT_PUZZLES_LIMIT);
+
+    if limit > MAX_PUZZLES_LIMIT {
+        return Err(ErrorResponse(format!(
+            "limit must be less than or equal to {}",
+            MAX_PUZZLES_LIMIT
+        )));
+    }
+
+    let records = list_puzzle_records(limit)
         .await
         .map_err(|e| ErrorResponse(e.to_string()))?;
 

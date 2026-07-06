@@ -85,7 +85,7 @@ pub async fn get_puzzle(puzzle_id: &str) -> Option<Puzzle> {
     }
 }
 
-pub async fn list_puzzle_records() -> Result<Vec<PuzzleSummaryRecord>, Box<dyn Error>> {
+pub async fn list_puzzle_records(limit: usize) -> Result<Vec<PuzzleSummaryRecord>, Box<dyn Error>> {
     if std::env::var("USE_LOCAL_FILES").is_ok() {
         let mut records = Vec::new();
         let mut entries = fs::read_dir("../puzzles").await?;
@@ -111,11 +111,13 @@ pub async fn list_puzzle_records() -> Result<Vec<PuzzleSummaryRecord>, Box<dyn E
         }
 
         records.sort_by(|a, b| a.name.cmp(&b.name));
+        records.truncate(limit);
         Ok(records)
     } else {
         let rows = sqlx::query_as::<_, PuzzleSummaryRow>(
-            "SELECT id, name, width, height, letters FROM puzzles ORDER BY name ASC",
+            "SELECT id, name, width, height, letters FROM puzzles ORDER BY name ASC LIMIT $1",
         )
+        .bind(limit as i64)
         .fetch_all(get_puzzles_pool())
         .await?;
 
