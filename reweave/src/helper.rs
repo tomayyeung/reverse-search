@@ -3,6 +3,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::HashSet;
+use std::env;
 use vercel_runtime::{Error, Request, Response, ResponseBody};
 
 use crate::common::puzzle;
@@ -11,22 +12,64 @@ use crate::db::*;
 #[derive(Serialize)]
 pub struct ErrorResponse(pub String);
 
+const ALLOWED_ORIGIN_ENV: &str = "ALLOWED_ORIGIN";
+
+fn allowed_origin_from_request(req: &Request) -> Option<&str> {
+    req.headers()
+        .get("Origin")
+        .and_then(|origin| origin.to_str().ok())
+}
+
+fn is_allowed_origin(origin: &str) -> bool {
+    env::var(ALLOWED_ORIGIN_ENV)
+        .ok()
+        .map(|allowed_origins| {
+            allowed_origins
+                .split(',')
+                .map(str::trim)
+                .any(|allowed_origin| allowed_origin == origin)
+        })
+        .unwrap_or(false)
+}
+
+pub fn require_allowed_origin(req: &Request) -> Result<String, ErrorResponse> {
+    let Some(origin) = allowed_origin_from_request(req) else {
+        return Err(ErrorResponse(String::from("Forbidden origin")));
+    };
+
+    if is_allowed_origin(origin) {
+        Ok(origin.to_string())
+    } else {
+        Err(ErrorResponse(String::from("Forbidden origin")))
+    }
+}
+
 /// Create a CORS response to OPTIONS method requests
 pub fn cors_response(
     status: u16,
     body: impl Into<ResponseBody>,
+    origin: &str,
 ) -> Result<Response<ResponseBody>, Error> {
     Ok(Response::builder()
         .status(status)
-        .header("Access-Control-Allow-Origin", "*")
+        .header("Access-Control-Allow-Origin", origin)
         .header("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
         .header("Access-Control-Allow-Headers", "Content-Type")
+        .header("Vary", "Origin")
         .body(body.into())?)
+}
+
+pub fn forbidden_origin_response() -> Result<Response<ResponseBody>, Error> {
+    Ok(Response::builder()
+        .status(403)
+        .header("Content-Type", "application/json")
+        .body(ResponseBody::from(json!({ "error": "Forbidden origin" })))?)
 }
 
 /// Create a JSON response to most HTTP requests
 pub fn json_response<T: Serialize>(
     out: Result<T, ErrorResponse>,
+    origin: &str,
 ) -> Result<Response<ResponseBody>, Error> {
     // Status and value depend on Ok or Err
     let (status, value) = match out {
@@ -37,15 +80,16 @@ pub fn json_response<T: Serialize>(
     Ok(Response::builder()
         .status(status)
         .header("Content-Type", "application/json")
-        .header("Access-Control-Allow-Origin", "*")
+        .header("Access-Control-Allow-Origin", origin)
         .header("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
         .header("Access-Control-Allow-Headers", "Content-Type")
+        .header("Vary", "Origin")
         .body(ResponseBody::from(value))?)
 }
 
 /// Create a JSON response with an error message
-pub fn json_err_response(err: &str) -> Result<Response<ResponseBody>, Error> {
-    json_response::<Value>(Err(ErrorResponse(String::from(err))))
+pub fn json_err_response(err: &str, origin: &str) -> Result<Response<ResponseBody>, Error> {
+    json_response::<Value>(Err(ErrorResponse(String::from(err))), origin)
 }
 
 /// Parse HTTP JSON body

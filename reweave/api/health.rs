@@ -1,10 +1,11 @@
 use serde_json::json;
 use vercel_runtime::{Error, Request, Response, ResponseBody, run, service_fn};
 
-use reweave::helper::json_response;
-
 pub async fn handler(_req: Request) -> Result<Response<ResponseBody>, Error> {
-    json_response(Ok(json!("ok")))
+    Ok(Response::builder()
+        .status(200)
+        .header("Content-Type", "application/json")
+        .body(ResponseBody::from(json!("ok")))?)
 }
 
 #[tokio::main]

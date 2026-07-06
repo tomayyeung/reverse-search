@@ -1,17 +1,23 @@
 use vercel_runtime::{Error, Request, Response, ResponseBody, run, service_fn};
 
 use reweave::helper::{
-    CreateInput, cors_response, create, json_err_response, json_response, read_json_body,
+    CreateInput, cors_response, create, forbidden_origin_response, json_err_response,
+    json_response, read_json_body, require_allowed_origin,
 };
 
 pub async fn handler(req: Request) -> Result<Response<ResponseBody>, Error> {
+    let origin = match require_allowed_origin(&req) {
+        Ok(origin) => origin,
+        Err(_) => return forbidden_origin_response(),
+    };
+
     match req.method().as_str() {
-        "OPTIONS" => cors_response(204, ""),
+        "OPTIONS" => cors_response(204, "", &origin),
         "POST" => {
             let params: CreateInput = read_json_body(req).await?;
-            json_response(create(params).await)
+            json_response(create(params).await, &origin)
         }
-        _ => json_err_response("Invalid method request"),
+        _ => json_err_response("Invalid method request", &origin),
     }
 }
 
