@@ -1,10 +1,18 @@
 use vercel_runtime::{Error, Request, Response, ResponseBody, run, service_fn};
 
-use reweave::helper::{LoadInput, cors_response, json_err_response, json_response, load_puzzle};
+use reweave::helper::{
+    LoadInput, cors_response, forbidden_origin_response, json_err_response, json_response,
+    load_puzzle, require_allowed_origin,
+};
 
 pub async fn handler(req: Request) -> Result<Response<ResponseBody>, Error> {
+    let origin = match require_allowed_origin(&req) {
+        Ok(origin) => origin,
+        Err(_) => return forbidden_origin_response(),
+    };
+
     match req.method().as_str() {
-        "OPTIONS" => cors_response(204, ""),
+        "OPTIONS" => cors_response(204, "", &origin),
         "GET" => {
             let params = if let Some(query) = req.uri().query() {
                 // read params from query
@@ -21,9 +29,9 @@ pub async fn handler(req: Request) -> Result<Response<ResponseBody>, Error> {
                     .to_string();
                 LoadInput { puzzle_id }
             };
-            json_response(load_puzzle(params).await)
+            json_response(load_puzzle(params).await, &origin)
         }
-        _ => json_err_response("Invalid method request"),
+        _ => json_err_response("Invalid method request", &origin),
     }
 }
 
