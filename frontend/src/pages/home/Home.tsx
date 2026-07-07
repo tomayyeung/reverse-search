@@ -94,7 +94,7 @@ export default function HomePage() {
                   </span>
                 </div>
                 <p className={styles.description}>
-                  {puzzle.description ?? "Custom description coming soon."}
+                  {puzzle.description ?? "No description provided."}
                 </p>
               </div>
               <div className={styles.stats}>

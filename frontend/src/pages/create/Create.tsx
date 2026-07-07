@@ -4,7 +4,7 @@ import { Link } from "react-router-dom";
 import { Board, BLANK } from "@/components/Board";
 import { WordList, wordsAsStringArr } from "@components/WordList";
 import type { PlayWords, Words } from "@components/WordList";
-import { Popup } from "@components/Popup";
+import { DescriptionPopup, Popup } from "@components/Popup";
 import { Wrapper } from "@components/Wrapper";
 
 import styles from "./Create.module.css";
@@ -15,6 +15,12 @@ import {
   find,
   load_puzzle_for_create as loadPuzzleForCreate,
 } from "@wasm/frontend";
+
+const DESCRIPTION_LIMIT = 60;
+
+type PendingSubmission = {
+  name: string;
+};
 
 export default function CreatePage() {
   const [width, setWidth] = useState(3);
@@ -28,6 +34,9 @@ export default function CreatePage() {
   const [puzzleId, setPuzzleId] = useState<string | undefined>();
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | undefined>();
+  const [pendingSubmission, setPendingSubmission] = useState<
+    PendingSubmission | undefined
+  >();
   const [pendingSize, setPendingSize] = useState<
     { width: number; height: number } | undefined
   >();
@@ -66,7 +75,17 @@ export default function CreatePage() {
   async function submitPuzzle(formData: FormData) {
     if (submitted) return;
 
+    setPendingSubmission({ name: String(formData.get("puzzle-name") ?? "") });
+  }
+
+  async function createPuzzle(
+    submission: PendingSubmission,
+    description: string,
+  ) {
+    if (submitted) return;
+
     setSubmitted(true);
+    setPendingSubmission(undefined);
     setSubmitError(undefined);
     setPuzzleId(undefined);
 
@@ -77,7 +96,8 @@ export default function CreatePage() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name: formData.get("puzzle-name"),
+          name: submission.name,
+          description,
           width: width,
           height: height,
           letters: hardSet
@@ -206,6 +226,19 @@ export default function CreatePage() {
 
       {submitError !== undefined && (
         <p className={styles.status}>Could not create puzzle: {submitError}</p>
+      )}
+
+      {pendingSubmission !== undefined && (
+        <DescriptionPopup
+          text="Add a short description for your puzzle."
+          maxLength={DESCRIPTION_LIMIT}
+          submitText="Submit puzzle"
+          cancelText="Cancel"
+          onSubmit={(description) => {
+            void createPuzzle(pendingSubmission, description);
+          }}
+          onCancel={() => setPendingSubmission(undefined)}
+        />
       )}
 
       {/* Confirmation for updating board size */}

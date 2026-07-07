@@ -26,6 +26,49 @@
   font-weight: 650;
 }
 
+.textEntry {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  text-align: left;
+}
+
+.textEntry span {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.textEntry textarea {
+  width: 100%;
+  min-height: 6rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 0.8rem;
+  background: var(--surface-strong);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  resize: vertical;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.textEntry textarea:focus {
+  border-color: var(--accent);
+  outline: none;
+  background: var(--surface);
+}
+
+.characterCount {
+  margin-top: 0.35rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-align: right;
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;

@@ -15,6 +15,7 @@ pub struct ErrorResponse(pub String);
 const ALLOWED_ORIGIN_ENV: &str = "ALLOWED_ORIGIN";
 const DEFAULT_PUZZLES_LIMIT: usize = 24;
 const MAX_PUZZLES_LIMIT: usize = 100;
+const DESCRIPTION_LIMIT: usize = 60;
 
 fn allowed_origin_from_request(req: &Request) -> Option<&str> {
     req.headers()
@@ -103,6 +104,7 @@ pub async fn read_json_body<T: DeserializeOwned>(req: Request) -> Result<T, Erro
 #[derive(Deserialize)]
 pub struct CreateInput {
     name: String,
+    description: Option<String>,
     width: usize,
     height: usize,
     letters: String,
@@ -116,8 +118,24 @@ pub struct CreateOutput {
 }
 
 pub async fn create(inp: CreateInput) -> Result<CreateOutput, ErrorResponse> {
+    let description = inp
+        .description
+        .map(|description| description.trim().to_string());
+
+    if description
+        .as_ref()
+        .is_some_and(|description| description.chars().count() > DESCRIPTION_LIMIT)
+    {
+        return Err(ErrorResponse(format!(
+            "description must be {DESCRIPTION_LIMIT} characters or fewer"
+        )));
+    }
+
+    let description = description.filter(|description| !description.is_empty());
+
     let puzzle = match puzzle::Puzzle::create(
         inp.name,
+        description,
         inp.width,
         inp.height,
         inp.letters,
@@ -207,7 +225,7 @@ pub async fn list_puzzles(inp: ListPuzzlesInput) -> Result<Vec<PuzzleSummary>, E
                 starting_letters,
                 total_cells,
                 given_percent,
-                description: None,
+                description: record.description,
             }
         })
         .collect())

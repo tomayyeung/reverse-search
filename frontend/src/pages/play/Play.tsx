@@ -16,6 +16,7 @@ type PendingAction = "solution" | "random" | "selected" | "clear";
 
 type PuzzleResponse = {
   name: string;
+  description: string | null;
   width: number;
   height: number;
   letters: string;
@@ -36,6 +37,9 @@ export default function PlayPage() {
   const [hardSet, setHardSet] = useState<boolean[]>([]);
 
   const [puzzleName, setPuzzleName] = useState("");
+  const [puzzleDescription, setPuzzleDescription] = useState<string | null>(
+    null,
+  );
   const [w, setWidth] = useState(0);
   const [h, setHeight] = useState(0);
 
@@ -82,6 +86,7 @@ export default function PlayPage() {
 
           // then load puzzle for rendering
           setPuzzleName(puzzle.name);
+          setPuzzleDescription(puzzle.description);
           setWidth(puzzle.width);
           setHeight(puzzle.height);
 
@@ -231,7 +236,12 @@ export default function PlayPage() {
         <div className={styles.boardPanel}>
           <div className={styles.header}>
             <div className={styles.headerTop}>
-              <h3>Puzzle: {puzzleName}</h3>
+              <div className={styles.titleBlock}>
+                <h3>Puzzle: {puzzleName}</h3>
+                {puzzleDescription !== null ? (
+                  <p className={styles.description}>{puzzleDescription}</p>
+                ) : null}
+              </div>
               {showRevealActions ? (
                 <Menu label="⋯" ariaLabel="Puzzle actions">
                   <button

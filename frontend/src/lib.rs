@@ -82,6 +82,7 @@ pub fn load_puzzle_for_create(
     *guard = Some(
         puzzle::Puzzle::create(
             String::new(), // no name needed
+            None,
             width as usize,
             height as usize,
             " ".repeat((width * height) as usize), // no starting letters needed

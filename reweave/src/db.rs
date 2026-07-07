@@ -13,6 +13,7 @@ pub static PUZZLES_POOL: OnceLock<PgPool> = OnceLock::new();
 #[derive(sqlx::FromRow)]
 struct PuzzleRow {
     pub name: String,
+    pub description: Option<String>,
     pub width: i32,
     pub height: i32,
     pub letters: String,
@@ -24,6 +25,7 @@ struct PuzzleRow {
 struct PuzzleSummaryRow {
     pub id: Uuid,
     pub name: String,
+    pub description: Option<String>,
     pub width: i32,
     pub height: i32,
     pub letters: String,
@@ -32,6 +34,7 @@ struct PuzzleSummaryRow {
 pub struct PuzzleSummaryRecord {
     pub id: String,
     pub name: String,
+    pub description: Option<String>,
     pub width: usize,
     pub height: usize,
     pub letters: String,
@@ -42,6 +45,7 @@ impl From<PuzzleSummaryRow> for PuzzleSummaryRecord {
         PuzzleSummaryRecord {
             id: row.id.to_string(),
             name: row.name,
+            description: row.description,
             width: row.width as usize,
             height: row.height as usize,
             letters: row.letters,
@@ -53,6 +57,7 @@ impl From<PuzzleRow> for Puzzle {
     fn from(row: PuzzleRow) -> Self {
         Puzzle {
             name: row.name,
+            description: row.description,
             width: row.width as usize,
             height: row.height as usize,
             letters: row.letters,
@@ -72,7 +77,7 @@ pub async fn get_puzzle(puzzle_id: &str) -> Option<Puzzle> {
         Puzzle::from_file(format!("../puzzles/{}.json", puzzle_id).as_str()).ok()
     } else {
         let Ok(puzzle_row) = sqlx::query_as::<_, PuzzleRow>(
-            "SELECT name, width, height, letters, words, answer FROM puzzles WHERE id = $1",
+            "SELECT name, description, width, height, letters, words, answer FROM puzzles WHERE id = $1",
         )
         .bind(Uuid::parse_str(puzzle_id).ok()?)
         .fetch_one(get_puzzles_pool())
@@ -104,6 +109,7 @@ pub async fn list_puzzle_records(limit: usize) -> Result<Vec<PuzzleSummaryRecord
             records.push(PuzzleSummaryRecord {
                 id: id.to_string(),
                 name: puzzle.name,
+                description: puzzle.description,
                 width: puzzle.width,
                 height: puzzle.height,
                 letters: puzzle.letters,
@@ -115,7 +121,7 @@ pub async fn list_puzzle_records(limit: usize) -> Result<Vec<PuzzleSummaryRecord
         Ok(records)
     } else {
         let rows = sqlx::query_as::<_, PuzzleSummaryRow>(
-            "SELECT id, name, width, height, letters FROM puzzles ORDER BY name ASC LIMIT $1",
+            "SELECT id, name, description, width, height, letters FROM puzzles ORDER BY name ASC LIMIT $1",
         )
         .bind(limit as i64)
         .fetch_all(get_puzzles_pool())
@@ -137,9 +143,10 @@ pub async fn insert_puzzle_into_db(puzzle: Puzzle) -> Result<String, Box<dyn Err
         let words: Vec<String> = puzzle.words.iter().cloned().collect();
 
         let uuid: Uuid = sqlx::query_scalar(
-            "INSERT INTO puzzles (name, width, height, letters, words, answer) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+            "INSERT INTO puzzles (name, description, width, height, letters, words, answer) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
         )
         .bind(puzzle.name)
+        .bind(puzzle.description)
         .bind(puzzle.width as i32)
         .bind(puzzle.height as i32)
         .bind(puzzle.letters)

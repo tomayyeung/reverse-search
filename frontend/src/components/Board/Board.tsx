@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import styles from "./Board.module.css";
 
@@ -74,9 +74,28 @@ export function Board({
   selectedTile: controlledSelectedTile,
   setSelectedTile: controlledSetSelectedTile,
 }: BoardProps) {
+  const boardRef = useRef<HTMLDivElement>(null);
   const [internalSelectedTile, setInternalSelectedTile] = useState(-1);
   const selectedTile = controlledSelectedTile ?? internalSelectedTile;
   const setSelectedTile = controlledSetSelectedTile ?? setInternalSelectedTile;
+
+  useEffect(() => {
+    function deselectOnOutsideClick(event: PointerEvent) {
+      const target = event.target;
+
+      if (!(target instanceof Node) || boardRef.current?.contains(target)) {
+        return;
+      }
+
+      setSelectedTile(-1);
+    }
+
+    document.addEventListener("pointerdown", deselectOnOutsideClick);
+
+    return () => {
+      document.removeEventListener("pointerdown", deselectOnOutsideClick);
+    };
+  }, [setSelectedTile]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -143,6 +162,7 @@ export function Board({
   return (
     <div className={styles.boardFrame}>
       <div
+        ref={boardRef}
         className={styles.board}
         style={boardStyle}
       >

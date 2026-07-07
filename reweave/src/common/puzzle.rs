@@ -18,6 +18,8 @@ pub struct Words {
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Puzzle {
     pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
     pub width: usize,
     pub height: usize,
     /// holes, blanks are stored in letters as !, _
@@ -32,6 +34,7 @@ impl Puzzle {
     /// For holes in the puzzle use '!'
     pub fn create(
         name: String,
+        description: Option<String>,
         width: usize,
         height: usize,
         letters: String,
@@ -44,6 +47,7 @@ impl Puzzle {
 
         Ok(Puzzle {
             name,
+            description,
             width,
             height,
             letters,
@@ -87,6 +91,7 @@ mod tests {
 
         Puzzle {
             name: String::from(""),
+            description: None,
             width: board.width,
             height: board.height,
             letters: answer.clone(),
