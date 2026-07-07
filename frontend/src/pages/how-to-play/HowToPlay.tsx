@@ -1,9 +1,5 @@
 import styles from "./HowToPlay.module.css";
 
-import playImg from "@public/tutorial/Play.jpeg";
-import createImg from "@public/tutorial/Create.jpeg";
-import createLockedImg from "@public/tutorial/Create_locked.jpeg";
-
 function ScreenshotContainer({
   title,
   children,
@@ -59,7 +55,7 @@ export default function HowToPlayPage() {
 
         <ScreenshotContainer title="Play page example">
           <img
-            src={playImg}
+            src={"/tutorial/Play.jpeg"}
             alt="Partially completed play puzzle with the word list visible"
           />
         </ScreenshotContainer>
@@ -100,11 +96,11 @@ export default function HowToPlayPage() {
         </ol>
 
         <ScreenshotContainer title="Create page setup">
-          <img src={createImg} alt="Create page with generated word list" />
+          <img src={"/tutorial/Create.jpeg"} alt="Create page with generated word list" />
         </ScreenshotContainer>
         <ScreenshotContainer title="Locked word list and submission">
           <img
-            src={createLockedImg}
+            src={"/tutorial/Create_locked.jpeg"}
             alt="Create page after locking word list"
           />
         </ScreenshotContainer>
