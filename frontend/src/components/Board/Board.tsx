@@ -79,6 +79,44 @@ export function Board({
   const selectedTile = controlledSelectedTile ?? internalSelectedTile;
   const setSelectedTile = controlledSetSelectedTile ?? setInternalSelectedTile;
 
+  function isSelectableTile(idx: number) {
+    return (
+      idx >= 0 &&
+      idx < boardLetters.length &&
+      (boardType === "Create" || boardLetters[idx] !== HOLE)
+    );
+  }
+
+  function getNextTabTile(idx: number) {
+    for (let offset = 1; offset <= boardLetters.length; offset++) {
+      const nextIdx = (idx + offset) % boardLetters.length;
+
+      if (isSelectableTile(nextIdx)) {
+        return nextIdx;
+      }
+    }
+
+    return idx;
+  }
+
+  function getArrowTile(idx: number, key: string) {
+    const row = Math.floor(idx / width);
+    const col = idx % width;
+
+    switch (key) {
+      case "ArrowRight":
+        return col === width - 1 ? idx : idx + 1;
+      case "ArrowLeft":
+        return col === 0 ? idx : idx - 1;
+      case "ArrowDown":
+        return row === height - 1 ? idx : idx + width;
+      case "ArrowUp":
+        return row === 0 ? idx : idx - width;
+      default:
+        return idx;
+    }
+  }
+
   useEffect(() => {
     function deselectOnOutsideClick(event: PointerEvent) {
       const target = event.target;
@@ -102,6 +140,27 @@ export function Board({
       const idx = selectedTile;
 
       if (idx === -1) {
+        return;
+      }
+
+      if (e.key === "Tab") {
+        e.preventDefault();
+        setSelectedTile(getNextTabTile(idx));
+        return;
+      }
+
+      if (
+        e.key === "ArrowRight" ||
+        e.key === "ArrowLeft" ||
+        e.key === "ArrowDown" ||
+        e.key === "ArrowUp"
+      ) {
+        const nextIdx = getArrowTile(idx, e.key);
+
+        e.preventDefault();
+        if (isSelectableTile(nextIdx)) {
+          setSelectedTile(nextIdx);
+        }
         return;
       }
 
@@ -144,7 +203,18 @@ export function Board({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [selectedTile, boardType, filteringLetters, boardLetters, hardSet, setBoardLetters, setHardSet]);
+  }, [
+    selectedTile,
+    boardType,
+    filteringLetters,
+    width,
+    height,
+    boardLetters,
+    hardSet,
+    setBoardLetters,
+    setHardSet,
+    setSelectedTile,
+  ]);
 
   if (width <= 0 || height <= 0 || boardLetters.length === 0) {
     return null;
@@ -175,7 +245,7 @@ export function Board({
             isHardSet={hardSet[i]}
             isHole={letter === HOLE}
             updateSelectedTile={(idx: number) => {
-              if (!(boardType === "Play" && letter === HOLE))
+              if (boardType === "Create" || letter !== HOLE)
                 setSelectedTile(selectedTile === idx ? -1 : idx);
             }}
             isSelected={selectedTile === i}
