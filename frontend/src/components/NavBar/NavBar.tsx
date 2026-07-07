@@ -30,14 +30,6 @@ export function NavBar() {
           <span className={styles.placeholderLink}>Stats</span>
           <NavLink
             className={({ isActive }) =>
-              isActive ? `${styles.link} ${styles.active}` : styles.link
-            }
-            to="/abc"
-          >
-            Tmp
-          </NavLink>
-          <NavLink
-            className={({ isActive }) =>
               isActive
                 ? `${styles.primaryLink} ${styles.primaryActive}`
                 : styles.primaryLink
