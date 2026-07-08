@@ -6,6 +6,7 @@ const HomePage = lazy(() => import("./pages/home/Home"));
 const CreatePage = lazy(() => import("./pages/create/Create"));
 const HowToPlayPage = lazy(() => import("./pages/how-to-play/HowToPlay"));
 const PlayPage = lazy(() => import("./pages/play/Play"));
+const SearchPage = lazy(() => import("./pages/search/Search"));
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/how-to-play" element={<HowToPlayPage />} />
+          <Route path="/search" element={<SearchPage />} />
           <Route path="/create" element={<CreatePage />} />
           <Route path="/play/:puzzleId" element={<PlayPage />} />
         </Routes>

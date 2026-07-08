@@ -184,8 +184,40 @@ pub struct PuzzleSummary {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ListPuzzlesInput {
     pub limit: Option<usize>,
+    pub query: Option<String>,
+    pub min_width: Option<usize>,
+    pub min_height: Option<usize>,
+    pub max_width: Option<usize>,
+    pub max_height: Option<usize>,
+    pub min_given_percent: Option<u8>,
+    pub max_given_percent: Option<u8>,
+}
+
+fn normalized_dimension_filter(
+    width: Option<usize>,
+    height: Option<usize>,
+    label: &str,
+) -> Result<Option<(usize, usize)>, ErrorResponse> {
+    match (width, height) {
+        (Some(width), Some(height)) => {
+            if width == 0 || height == 0 {
+                return Err(ErrorResponse(format!(
+                    "{} dimensions must be greater than 0",
+                    label
+                )));
+            }
+
+            Ok(Some((width.min(height), width.max(height))))
+        }
+        (None, None) => Ok(None),
+        _ => Err(ErrorResponse(format!(
+            "{}Width and {}Height must be provided together",
+            label, label
+        ))),
+    }
 }
 
 pub async fn list_puzzles(inp: ListPuzzlesInput) -> Result<Vec<PuzzleSummary>, ErrorResponse> {
@@ -198,7 +230,28 @@ pub async fn list_puzzles(inp: ListPuzzlesInput) -> Result<Vec<PuzzleSummary>, E
         )));
     }
 
-    let records = list_puzzle_records(limit)
+    if inp.min_given_percent.is_some_and(|percent| percent > 100)
+        || inp.max_given_percent.is_some_and(|percent| percent > 100)
+    {
+        return Err(ErrorResponse(String::from(
+            "given letter percentages must be between 0 and 100",
+        )));
+    }
+
+    let query = inp
+        .query
+        .map(|query| query.trim().to_string())
+        .filter(|query| !query.is_empty());
+
+    let filters = PuzzleRecordFilters {
+        query,
+        min_dimensions: normalized_dimension_filter(inp.min_width, inp.min_height, "min")?,
+        max_dimensions: normalized_dimension_filter(inp.max_width, inp.max_height, "max")?,
+        min_given_percent: inp.min_given_percent,
+        max_given_percent: inp.max_given_percent,
+    };
+
+    let records = list_puzzle_records(limit, filters)
         .await
         .map_err(|e| ErrorResponse(e.to_string()))?;
 

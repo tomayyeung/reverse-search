@@ -18,7 +18,16 @@ pub async fn handler(req: Request) -> Result<Response<ResponseBody>, Error> {
                 serde_urlencoded::from_str(query)
                     .map_err(Box::<dyn std::error::Error + Send + Sync>::from)?
             } else {
-                ListPuzzlesInput { limit: None }
+                ListPuzzlesInput {
+                    limit: None,
+                    query: None,
+                    min_width: None,
+                    min_height: None,
+                    max_width: None,
+                    max_height: None,
+                    min_given_percent: None,
+                    max_given_percent: None,
+                }
             };
 
             json_response(list_puzzles(params).await, &origin)

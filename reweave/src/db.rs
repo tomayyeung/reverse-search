@@ -1,4 +1,4 @@
-use sqlx::PgPool;
+use sqlx::{PgPool, Postgres, QueryBuilder};
 use std::error::Error;
 use std::sync::OnceLock;
 use tokio::fs;
@@ -38,6 +38,86 @@ pub struct PuzzleSummaryRecord {
     pub width: usize,
     pub height: usize,
     pub letters: String,
+}
+
+pub struct PuzzleRecordFilters {
+    pub query: Option<String>,
+    pub min_dimensions: Option<(usize, usize)>,
+    pub max_dimensions: Option<(usize, usize)>,
+    pub min_given_percent: Option<u8>,
+    pub max_given_percent: Option<u8>,
+}
+
+fn starting_letters(letters: &str) -> usize {
+    letters
+        .chars()
+        .filter(|letter| *letter != '_' && *letter != '!')
+        .count()
+}
+
+fn given_percent(width: usize, height: usize, letters: &str) -> u8 {
+    let total_cells = width * height;
+
+    if total_cells == 0 {
+        0
+    } else {
+        ((starting_letters(letters) * 100 + total_cells / 2) / total_cells) as u8
+    }
+}
+
+fn normalized_dimensions(width: usize, height: usize) -> (usize, usize) {
+    (width.min(height), width.max(height))
+}
+
+fn matches_filters(record: &PuzzleSummaryRecord, filters: &PuzzleRecordFilters) -> bool {
+    if let Some(query) = &filters.query {
+        let query = query.to_lowercase();
+        let name = record.name.to_lowercase();
+        let description = record.description.as_deref().unwrap_or("").to_lowercase();
+
+        if !name.contains(&query) && !description.contains(&query) {
+            return false;
+        }
+    }
+
+    let dimensions = normalized_dimensions(record.width, record.height);
+
+    if let Some(min_dimensions) = filters.min_dimensions {
+        if dimensions.0 < min_dimensions.0 || dimensions.1 < min_dimensions.1 {
+            return false;
+        }
+    }
+
+    if let Some(max_dimensions) = filters.max_dimensions {
+        if dimensions.0 > max_dimensions.0 || dimensions.1 > max_dimensions.1 {
+            return false;
+        }
+    }
+
+    let percent = given_percent(record.width, record.height, &record.letters);
+
+    if let Some(min_given_percent) = filters.min_given_percent {
+        if percent < min_given_percent {
+            return false;
+        }
+    }
+
+    if let Some(max_given_percent) = filters.max_given_percent {
+        if percent > max_given_percent {
+            return false;
+        }
+    }
+
+    true
+}
+
+fn push_where_clause(query: &mut QueryBuilder<Postgres>, has_where: &mut bool) {
+    if *has_where {
+        query.push(" AND ");
+    } else {
+        query.push(" WHERE ");
+        *has_where = true;
+    }
 }
 
 impl From<PuzzleSummaryRow> for PuzzleSummaryRecord {
@@ -90,7 +170,10 @@ pub async fn get_puzzle(puzzle_id: &str) -> Option<Puzzle> {
     }
 }
 
-pub async fn list_puzzle_records(limit: usize) -> Result<Vec<PuzzleSummaryRecord>, Box<dyn Error>> {
+pub async fn list_puzzle_records(
+    limit: usize,
+    filters: PuzzleRecordFilters,
+) -> Result<Vec<PuzzleSummaryRecord>, Box<dyn Error>> {
     if std::env::var("USE_LOCAL_FILES").is_ok() {
         let mut records = Vec::new();
         let mut entries = fs::read_dir("../puzzles").await?;
@@ -116,16 +199,71 @@ pub async fn list_puzzle_records(limit: usize) -> Result<Vec<PuzzleSummaryRecord
             });
         }
 
+        records.retain(|record| matches_filters(record, &filters));
         records.sort_by(|a, b| a.name.cmp(&b.name));
         records.truncate(limit);
         Ok(records)
     } else {
-        let rows = sqlx::query_as::<_, PuzzleSummaryRow>(
-            "SELECT id, name, description, width, height, letters FROM puzzles ORDER BY name ASC LIMIT $1",
-        )
-        .bind(limit as i64)
-        .fetch_all(get_puzzles_pool())
-        .await?;
+        let mut query = QueryBuilder::<Postgres>::new(
+            "SELECT id, name, description, width, height, letters FROM puzzles",
+        );
+        let mut has_where = false;
+
+        if let Some(text_query) = filters.query {
+            let pattern = format!("%{}%", text_query);
+            push_where_clause(&mut query, &mut has_where);
+            query
+                .push("(name ILIKE ")
+                .push_bind(pattern.clone())
+                .push(" OR description ILIKE ")
+                .push_bind(pattern)
+                .push(")");
+        }
+
+        if let Some((min_small, min_large)) = filters.min_dimensions {
+            push_where_clause(&mut query, &mut has_where);
+            query
+                .push("LEAST(width, height) >= ")
+                .push_bind(min_small as i32)
+                .push(" AND GREATEST(width, height) >= ")
+                .push_bind(min_large as i32);
+        }
+
+        if let Some((max_small, max_large)) = filters.max_dimensions {
+            push_where_clause(&mut query, &mut has_where);
+            query
+                .push("LEAST(width, height) <= ")
+                .push_bind(max_small as i32)
+                .push(" AND GREATEST(width, height) <= ")
+                .push_bind(max_large as i32);
+        }
+
+        let percent_sql = "((length(replace(replace(letters, '_', ''), '!', '')) * 100 + (width * height / 2)) / (width * height))";
+
+        if let Some(min_given_percent) = filters.min_given_percent {
+            push_where_clause(&mut query, &mut has_where);
+            query
+                .push(percent_sql)
+                .push(" >= ")
+                .push_bind(min_given_percent as i32);
+        }
+
+        if let Some(max_given_percent) = filters.max_given_percent {
+            push_where_clause(&mut query, &mut has_where);
+            query
+                .push(percent_sql)
+                .push(" <= ")
+                .push_bind(max_given_percent as i32);
+        }
+
+        query
+            .push(" ORDER BY name ASC LIMIT ")
+            .push_bind(limit as i64);
+
+        let rows = query
+            .build_query_as::<PuzzleSummaryRow>()
+            .fetch_all(get_puzzles_pool())
+            .await?;
 
         Ok(rows.into_iter().map(PuzzleSummaryRecord::from).collect())
     }
