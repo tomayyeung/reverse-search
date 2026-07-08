@@ -1,5 +1,9 @@
+use chrono::Utc;
+use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, Postgres, QueryBuilder};
+use std::collections::HashSet;
 use std::error::Error;
+use std::path::Path;
 use std::sync::OnceLock;
 use tokio::fs;
 use tokio::fs::File;
@@ -10,6 +14,11 @@ use crate::common::puzzle::Puzzle;
 
 pub static PUZZLES_POOL: OnceLock<PgPool> = OnceLock::new();
 
+/**
+ * Necessary structs for puzzles
+ */
+
+/// A row from a table representing a puzzle, used when fetching a puzzle to play
 #[derive(sqlx::FromRow)]
 struct PuzzleRow {
     pub name: String,
@@ -21,6 +30,7 @@ struct PuzzleRow {
     pub answer: String,
 }
 
+/// A row from a table representing the summary of a puzzle, used when listing puzzles
 #[derive(sqlx::FromRow)]
 struct PuzzleSummaryRow {
     pub id: Uuid,
@@ -29,8 +39,14 @@ struct PuzzleSummaryRow {
     pub width: i32,
     pub height: i32,
     pub letters: String,
+    pub plays: i32,
+    pub completions: i32,
+    pub likes: i32,
+    pub created_at: String,
 }
 
+/// A summary of a puzzle, used when listing puzzles
+#[derive(Deserialize)]
 pub struct PuzzleSummaryRecord {
     pub id: String,
     pub name: String,
@@ -38,7 +54,46 @@ pub struct PuzzleSummaryRecord {
     pub width: usize,
     pub height: usize,
     pub letters: String,
+    pub plays: u64,
+    pub completions: u64,
+    pub likes: u64,
+    pub created_at: String,
 }
+
+impl From<PuzzleSummaryRow> for PuzzleSummaryRecord {
+    fn from(row: PuzzleSummaryRow) -> Self {
+        PuzzleSummaryRecord {
+            id: row.id.to_string(),
+            name: row.name,
+            description: row.description,
+            width: row.width as usize,
+            height: row.height as usize,
+            letters: row.letters,
+            plays: row.plays as u64,
+            completions: row.completions as u64,
+            likes: row.likes as u64,
+            created_at: row.created_at,
+        }
+    }
+}
+
+impl From<PuzzleRow> for Puzzle {
+    fn from(row: PuzzleRow) -> Self {
+        Puzzle {
+            name: row.name,
+            description: row.description,
+            width: row.width as usize,
+            height: row.height as usize,
+            letters: row.letters,
+            words: row.words.into_iter().collect(),
+            answer: row.answer,
+        }
+    }
+}
+
+/**
+ * Structs and helper functions for searching for puzzles
+ */
 
 pub struct PuzzleRecordFilters {
     pub query: Option<String>,
@@ -120,32 +175,68 @@ fn push_where_clause(query: &mut QueryBuilder<Postgres>, has_where: &mut bool) {
     }
 }
 
-impl From<PuzzleSummaryRow> for PuzzleSummaryRecord {
-    fn from(row: PuzzleSummaryRow) -> Self {
-        PuzzleSummaryRecord {
-            id: row.id.to_string(),
-            name: row.name,
-            description: row.description,
-            width: row.width as usize,
-            height: row.height as usize,
-            letters: row.letters,
+/**
+ * Structs and functions for local development
+ */
+
+/// A record of a local puzzle,
+#[derive(Deserialize, Serialize)]
+struct LocalPuzzleRecord {
+    name: String,
+    description: Option<String>,
+    width: usize,
+    height: usize,
+    letters: String,
+    words: HashSet<String>,
+    answer: String,
+    plays: u64,
+    completions: u64,
+    likes: u64,
+    created_at: String,
+}
+
+impl From<Puzzle> for LocalPuzzleRecord {
+    fn from(puzzle: Puzzle) -> Self {
+        LocalPuzzleRecord {
+            name: puzzle.name,
+            description: puzzle.description,
+            width: puzzle.width,
+            height: puzzle.height,
+            letters: puzzle.letters,
+            words: puzzle.words,
+            answer: puzzle.answer,
+            plays: 0,
+            completions: 0,
+            likes: 0,
+            created_at: Utc::now().to_rfc3339(),
         }
     }
 }
 
-impl From<PuzzleRow> for Puzzle {
-    fn from(row: PuzzleRow) -> Self {
+impl From<LocalPuzzleRecord> for Puzzle {
+    fn from(record: LocalPuzzleRecord) -> Self {
         Puzzle {
-            name: row.name,
-            description: row.description,
-            width: row.width as usize,
-            height: row.height as usize,
-            letters: row.letters,
-            words: row.words.into_iter().collect(),
-            answer: row.answer,
+            name: record.name,
+            description: record.description,
+            width: record.width,
+            height: record.height,
+            letters: record.letters,
+            words: record.words,
+            answer: record.answer,
         }
     }
 }
+
+async fn read_local_puzzle_record(
+    path: impl AsRef<Path>,
+) -> Result<LocalPuzzleRecord, Box<dyn Error>> {
+    let data = fs::read_to_string(path).await?;
+    Ok(serde_json::from_str(&data)?)
+}
+
+/**
+ * General-use necessary functions
+ */
 
 pub fn get_puzzles_pool() -> &'static PgPool {
     PUZZLES_POOL
@@ -154,7 +245,10 @@ pub fn get_puzzles_pool() -> &'static PgPool {
 
 pub async fn get_puzzle(puzzle_id: &str) -> Option<Puzzle> {
     if std::env::var("USE_LOCAL_FILES").is_ok() {
-        Puzzle::from_file(format!("../puzzles/{}.json", puzzle_id).as_str()).ok()
+        read_local_puzzle_record(format!("../puzzles/{}.json", puzzle_id))
+            .await
+            .ok()
+            .map(Puzzle::from)
     } else {
         let Ok(puzzle_row) = sqlx::query_as::<_, PuzzleRow>(
             "SELECT name, description, width, height, letters, words, answer FROM puzzles WHERE id = $1",
@@ -184,18 +278,22 @@ pub async fn list_puzzle_records(
                 continue;
             }
 
-            let puzzle = Puzzle::from_file(path.to_string_lossy().as_ref())?;
+            let local_record = read_local_puzzle_record(&path).await?;
             let Some(id) = path.file_stem().and_then(|name| name.to_str()) else {
                 continue;
             };
 
             records.push(PuzzleSummaryRecord {
                 id: id.to_string(),
-                name: puzzle.name,
-                description: puzzle.description,
-                width: puzzle.width,
-                height: puzzle.height,
-                letters: puzzle.letters,
+                name: local_record.name,
+                description: local_record.description,
+                width: local_record.width,
+                height: local_record.height,
+                letters: local_record.letters,
+                plays: local_record.plays,
+                completions: local_record.completions,
+                likes: local_record.likes,
+                created_at: local_record.created_at,
             });
         }
 
@@ -271,12 +369,14 @@ pub async fn list_puzzle_records(
 
 pub async fn insert_puzzle_into_db(puzzle: Puzzle) -> Result<String, Box<dyn Error>> {
     if std::env::var("USE_LOCAL_FILES").is_ok() {
-        let json_data = serde_json::to_string(&puzzle)?;
-        let mut file = File::create(format!("../puzzles/{}.json", puzzle.name)).await?;
+        let record = LocalPuzzleRecord::from(puzzle);
+        let id = record.name.clone();
+        let json_data = serde_json::to_string(&record)?;
+        let mut file = File::create(format!("../puzzles/{}.json", id)).await?;
         file.write_all(json_data.as_bytes()).await?;
         file.flush().await?;
 
-        Ok(puzzle.name)
+        Ok(id)
     } else {
         let words: Vec<String> = puzzle.words.iter().cloned().collect();
 
