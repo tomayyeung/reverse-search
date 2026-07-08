@@ -79,44 +79,7 @@ export function Board({
   const selectedTile = controlledSelectedTile ?? internalSelectedTile;
   const setSelectedTile = controlledSetSelectedTile ?? setInternalSelectedTile;
 
-  function isSelectableTile(idx: number) {
-    return (
-      idx >= 0 &&
-      idx < boardLetters.length &&
-      (boardType === "Create" || boardLetters[idx] !== HOLE)
-    );
-  }
-
-  function getNextTabTile(idx: number) {
-    for (let offset = 1; offset <= boardLetters.length; offset++) {
-      const nextIdx = (idx + offset) % boardLetters.length;
-
-      if (isSelectableTile(nextIdx)) {
-        return nextIdx;
-      }
-    }
-
-    return idx;
-  }
-
-  function getArrowTile(idx: number, key: string) {
-    const row = Math.floor(idx / width);
-    const col = idx % width;
-
-    switch (key) {
-      case "ArrowRight":
-        return col === width - 1 ? idx : idx + 1;
-      case "ArrowLeft":
-        return col === 0 ? idx : idx - 1;
-      case "ArrowDown":
-        return row === height - 1 ? idx : idx + width;
-      case "ArrowUp":
-        return row === 0 ? idx : idx - width;
-      default:
-        return idx;
-    }
-  }
-
+  // Deselect tile when clicking out of the board
   useEffect(() => {
     function deselectOnOutsideClick(event: PointerEvent) {
       const target = event.target;
@@ -135,7 +98,46 @@ export function Board({
     };
   }, [setSelectedTile]);
 
+  // Updating the board
   useEffect(() => {
+    function isSelectableTile(idx: number) {
+      return (
+        idx >= 0 &&
+        idx < boardLetters.length &&
+        (boardType === "Create" || boardLetters[idx] !== HOLE)
+      );
+    }
+
+    function getNextTabTile(idx: number) {
+      for (let offset = 1; offset <= boardLetters.length; offset++) {
+        const nextIdx = (idx + offset) % boardLetters.length;
+
+        if (isSelectableTile(nextIdx)) {
+          return nextIdx;
+        }
+      }
+
+      return idx;
+    }
+
+    function getArrowTile(idx: number, key: string) {
+      const row = Math.floor(idx / width);
+      const col = idx % width;
+
+      switch (key) {
+        case "ArrowRight":
+          return col === width - 1 ? idx : idx + 1;
+        case "ArrowLeft":
+          return col === 0 ? idx : idx - 1;
+        case "ArrowDown":
+          return row === height - 1 ? idx : idx + width;
+        case "ArrowUp":
+          return row === 0 ? idx : idx - width;
+        default:
+          return idx;
+      }
+    }
+
     const handleKeyDown = (e: KeyboardEvent) => {
       const idx = selectedTile;
 
@@ -143,6 +145,7 @@ export function Board({
         return;
       }
 
+      // Board navigation
       if (e.key === "Tab") {
         e.preventDefault();
         setSelectedTile(getNextTabTile(idx));
@@ -231,11 +234,7 @@ export function Board({
 
   return (
     <div className={styles.boardFrame}>
-      <div
-        ref={boardRef}
-        className={styles.board}
-        style={boardStyle}
-      >
+      <div ref={boardRef} className={styles.board} style={boardStyle}>
         {[...boardLetters].map((letter, i) => (
           <Tile
             boardType={boardType}
