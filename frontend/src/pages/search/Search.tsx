@@ -119,9 +119,7 @@ export default function SearchPage() {
                   name="minWidth"
                   type="number"
                   min="1"
-                  value={minWidth}
                   onChange={(event) => setMinWidth(event.target.value)}
-                  placeholder="3"
                 />
               </label>
               <label htmlFor="min-height">
@@ -131,9 +129,7 @@ export default function SearchPage() {
                   name="minHeight"
                   type="number"
                   min="1"
-                  value={minHeight}
                   onChange={(event) => setMinHeight(event.target.value)}
-                  placeholder="3"
                 />
               </label>
             </div>
@@ -149,9 +145,7 @@ export default function SearchPage() {
                   name="maxWidth"
                   type="number"
                   min="1"
-                  value={maxWidth}
                   onChange={(event) => setMaxWidth(event.target.value)}
-                  placeholder="5"
                 />
               </label>
               <label htmlFor="max-height">
@@ -161,9 +155,7 @@ export default function SearchPage() {
                   name="maxHeight"
                   type="number"
                   min="1"
-                  value={maxHeight}
                   onChange={(event) => setMaxHeight(event.target.value)}
-                  placeholder="4"
                 />
               </label>
             </div>
@@ -185,9 +177,7 @@ export default function SearchPage() {
                 type="number"
                 min="0"
                 max="100"
-                value={givenPercent}
                 onChange={(event) => setGivenPercent(event.target.value)}
-                placeholder="40"
               />
               <span>%</span>
             </div>
