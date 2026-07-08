@@ -109,11 +109,10 @@ export default function SearchPage() {
             />
           </div>
 
-          <fieldset className={styles.dimensionGroup}>
-            <legend>Minimum dimensions</legend>
+          <div>
+            <label>Minimum dimensions</label>
             <div className={styles.dimensionInputs}>
               <label htmlFor="min-width">
-                Width
                 <input
                   id="min-width"
                   name="minWidth"
@@ -122,8 +121,8 @@ export default function SearchPage() {
                   onChange={(event) => setMinWidth(event.target.value)}
                 />
               </label>
+              <span>x</span>
               <label htmlFor="min-height">
-                Height
                 <input
                   id="min-height"
                   name="minHeight"
@@ -133,13 +132,12 @@ export default function SearchPage() {
                 />
               </label>
             </div>
-          </fieldset>
+          </div>
 
-          <fieldset className={styles.dimensionGroup}>
-            <legend>Maximum dimensions</legend>
+          <div>
+            <label>Maximum dimensions</label>
             <div className={styles.dimensionInputs}>
               <label htmlFor="max-width">
-                Width
                 <input
                   id="max-width"
                   name="maxWidth"
@@ -148,8 +146,8 @@ export default function SearchPage() {
                   onChange={(event) => setMaxWidth(event.target.value)}
                 />
               </label>
+              <span>x</span>
               <label htmlFor="max-height">
-                Height
                 <input
                   id="max-height"
                   name="maxHeight"
@@ -159,7 +157,7 @@ export default function SearchPage() {
                 />
               </label>
             </div>
-          </fieldset>
+          </div>
 
           <div className={styles.givenGroup}>
             <label htmlFor="given-mode">Provided letters</label>
@@ -167,7 +165,9 @@ export default function SearchPage() {
               <select
                 id="given-mode"
                 value={givenMode}
-                onChange={(event) => setGivenMode(event.target.value as GivenMode)}
+                onChange={(event) =>
+                  setGivenMode(event.target.value as GivenMode)
+                }
               >
                 <option value="atLeast">At least</option>
                 <option value="atMost">At most</option>
@@ -191,16 +191,23 @@ export default function SearchPage() {
 
       <section className={styles.results} aria-labelledby="results-title">
         <div className={styles.resultsHeader}>
-          <h2 id="results-title">Results</h2>
           {searched && !loading && searchError === undefined ? (
-            <span>{puzzles.length} found</span>
+            <>
+              <h2 id="results-title">Results</h2>
+              <span>{puzzles.length} found</span>
+            </>
           ) : null}
         </div>
 
         {searchError !== undefined ? (
-          <p className={styles.status}>Could not search puzzles: {searchError}</p>
+          <p className={styles.status}>
+            Could not search puzzles: {searchError}
+          </p>
         ) : null}
-        {searched && !loading && searchError === undefined && puzzles.length === 0 ? (
+        {searched &&
+        !loading &&
+        searchError === undefined &&
+        puzzles.length === 0 ? (
           <p className={styles.status}>No puzzles matched those filters.</p>
         ) : null}
 
