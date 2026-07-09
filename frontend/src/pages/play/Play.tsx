@@ -24,9 +24,27 @@ type PuzzleResponse = {
   error?: string;
 };
 
+function formatDuration(totalSeconds: number) {
+  const seconds = totalSeconds % 60;
+  const totalMinutes = Math.floor(totalSeconds / 60);
+  const minutes = totalMinutes % 60;
+  const hours = Math.floor(totalMinutes / 60);
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${seconds}s`;
+  }
+
+  if (minutes > 0) {
+    return `${minutes}m ${seconds}s`;
+  }
+
+  return `${seconds}s`;
+}
+
 async function incrementPuzzleStat(
   puzzleId: string | undefined,
   event: "play" | "completion",
+  completionTimeSeconds?: number,
 ) {
   if (puzzleId === undefined) {
     return;
@@ -35,7 +53,7 @@ async function incrementPuzzleStat(
   await fetch(`${API_URL}/api/stats`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ puzzleId, event }),
+    body: JSON.stringify({ puzzleId, event, completionTimeSeconds }),
   });
 }
 
@@ -64,16 +82,20 @@ export default function PlayPage() {
   >();
   const [gaveUp, setGaveUp] = useState(false);
   const [usedHint, setUsedHint] = useState(false);
+  const [showTimer, setShowTimer] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [selectedTile, setSelectedTile] = useState(-1);
   const playCountedRef = useRef(false);
   const completionCountedRef = useRef(false);
   const completionEligibleRef = useRef(false);
+  const timerStartedAtRef = useRef<number | undefined>(undefined);
 
   const words: PlayWords = puzzleFetched
     ? { kind: "play", ...(check(boardLetters) as Omit<PlayWords, "kind">) }
     : { kind: "play", found: [], missing: [], extra: [] };
   const complete = puzzleFetched && allWordsFound(words);
   const showRevealActions = puzzleFetched === true && !complete && !gaveUp;
+  const formattedElapsed = formatDuration(elapsedSeconds);
 
   useEffect(() => {
     const route = `${API_URL}/api/puzzle/${puzzleId}`;
@@ -121,6 +143,9 @@ export default function PlayPage() {
           setSelectedTile(-1);
           setUsedHint(false);
           setGaveUp(false);
+          setShowTimer(false);
+          setElapsedSeconds(0);
+          timerStartedAtRef.current = Date.now();
           playCountedRef.current = false;
           completionCountedRef.current = false;
           completionEligibleRef.current = false;
@@ -151,6 +176,22 @@ export default function PlayPage() {
     };
   }, [puzzleId]);
 
+  useEffect(() => {
+    if (puzzleFetched !== true || complete || gaveUp) {
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      const startedAt = timerStartedAtRef.current;
+
+      if (startedAt !== undefined) {
+        setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+      }
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [puzzleFetched, complete, gaveUp]);
+
   function countPlay() {
     completionEligibleRef.current = true;
 
@@ -172,8 +213,13 @@ export default function PlayPage() {
       return;
     }
 
+    const startedAt = timerStartedAtRef.current;
+    const completionTimeSeconds =
+      startedAt === undefined ? 0 : Math.floor((Date.now() - startedAt) / 1000);
+
+    setElapsedSeconds(completionTimeSeconds);
     completionCountedRef.current = true;
-    void incrementPuzzleStat(puzzleId, "completion");
+    void incrementPuzzleStat(puzzleId, "completion", completionTimeSeconds);
   }, [complete, gaveUp, puzzleId]);
 
   function revealTile(idx: number) {
@@ -290,38 +336,54 @@ export default function PlayPage() {
                   <p className={styles.description}>{puzzleDescription}</p>
                 ) : null}
               </div>
-              {showRevealActions ? (
-                <Menu label="⋯" ariaLabel="Puzzle actions">
-                  <button
-                    type="button"
-                    className={styles.dangerMenuItem}
-                    onClick={() => setPendingAction("solution")}
-                  >
-                    Reveal solution
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.dangerMenuItem}
-                    onClick={() => setPendingAction("random")}
-                  >
-                    Reveal random tile
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.dangerMenuItem}
-                    disabled={selectedTile === -1}
-                    onClick={() => setPendingAction("selected")}
-                  >
-                    Reveal selected tile
-                  </button>
-                  <button
-                    type="button"
-                    className={styles.secondaryMenuItem}
-                    onClick={() => setPendingAction("clear")}
-                  >
-                    Clear board
-                  </button>
-                </Menu>
+              {puzzleFetched === true ? (
+                <div className={styles.headerActions}>
+                  {showTimer ? (
+                    <span className={styles.timer}>Timer: {formattedElapsed}</span>
+                  ) : null}
+                  <Menu label="⋯" ariaLabel="Puzzle actions">
+                    <button
+                      type="button"
+                      className={styles.secondaryMenuItem}
+                      onClick={() => setShowTimer((visible) => !visible)}
+                    >
+                      {showTimer ? "Hide timer" : "Show timer"}
+                    </button>
+                    {showRevealActions ? (
+                      <>
+                        <button
+                          type="button"
+                          className={styles.dangerMenuItem}
+                          onClick={() => setPendingAction("solution")}
+                        >
+                          Reveal solution
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.dangerMenuItem}
+                          onClick={() => setPendingAction("random")}
+                        >
+                          Reveal random tile
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.dangerMenuItem}
+                          disabled={selectedTile === -1}
+                          onClick={() => setPendingAction("selected")}
+                        >
+                          Reveal selected tile
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.secondaryMenuItem}
+                          onClick={() => setPendingAction("clear")}
+                        >
+                          Clear board
+                        </button>
+                      </>
+                    ) : null}
+                  </Menu>
+                </div>
               ) : null}
             </div>
             <h4 hidden={!complete || gaveUp || usedHint}>Completed!</h4>
@@ -338,7 +400,9 @@ export default function PlayPage() {
       </Wrapper>
 
       {complete && !gaveUp && (
-        <Popup text="Congratulations! Puzzle completed." />
+        <Popup
+          text={`Congratulations! Puzzle completed in ${formattedElapsed}.`}
+        />
       )}
 
       {pendingAction !== undefined && showRevealActions && (

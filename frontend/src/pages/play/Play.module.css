@@ -32,6 +32,20 @@
   min-width: 0;
 }
 
+.headerActions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.timer {
+  color: var(--text-muted);
+  font-size: 1rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .description {
   margin: 0.2rem 0 0;
   color: var(--text-muted);

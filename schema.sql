@@ -10,6 +10,7 @@ CREATE TABLE "puzzles" (
 	"created_at" timestamp with time zone DEFAULT now(),
 	"plays" integer DEFAULT 0,
 	"completions" integer DEFAULT 0,
+	"completion_times" integer[] DEFAULT '{}' NOT NULL,
 	"likes" integer DEFAULT 0,
 	"description" text
 );

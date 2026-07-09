@@ -175,6 +175,7 @@ pub async fn load_puzzle(inp: LoadInput) -> Result<puzzle::Puzzle, ErrorResponse
 pub struct IncrementPuzzleStatInput {
     puzzle_id: String,
     event: String,
+    completion_time_seconds: Option<u32>,
 }
 
 #[derive(Serialize)]
@@ -187,7 +188,11 @@ pub async fn increment_stat(
 ) -> Result<IncrementPuzzleStatOutput, ErrorResponse> {
     let stat = match inp.event.as_str() {
         "play" => PuzzleStat::Plays,
-        "completion" => PuzzleStat::Completions,
+        "completion" => PuzzleStat::Completions {
+            completion_time_seconds: inp
+                .completion_time_seconds
+                .ok_or_else(|| ErrorResponse(String::from("missing completion time")))?,
+        },
         _ => return Err(ErrorResponse(String::from("invalid stat event"))),
     };
 

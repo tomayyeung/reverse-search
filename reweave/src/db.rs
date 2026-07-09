@@ -14,9 +14,10 @@ use crate::common::puzzle::Puzzle;
 
 pub static PUZZLES_POOL: OnceLock<PgPool> = OnceLock::new();
 
+#[derive(Clone, Copy)]
 pub enum PuzzleStat {
     Plays,
-    Completions,
+    Completions { completion_time_seconds: u32 },
 }
 
 /**
@@ -196,6 +197,8 @@ struct LocalPuzzleRecord {
     answer: String,
     plays: u64,
     completions: u64,
+    #[serde(default)]
+    completion_times: Vec<u32>,
     likes: u64,
     created_at: String,
 }
@@ -212,6 +215,7 @@ impl From<Puzzle> for LocalPuzzleRecord {
             answer: puzzle.answer,
             plays: 0,
             completions: 0,
+            completion_times: Vec::new(),
             likes: 0,
             created_at: Utc::now().to_rfc3339(),
         }
@@ -423,22 +427,33 @@ pub async fn increment_puzzle_stat(
 
         match stat {
             PuzzleStat::Plays => record.plays += 1,
-            PuzzleStat::Completions => record.completions += 1,
+            PuzzleStat::Completions {
+                completion_time_seconds,
+            } => {
+                record.completions += 1;
+                record.completion_times.push(completion_time_seconds);
+            }
         }
 
         write_local_puzzle_record(path, &record).await
     } else {
         let query = match stat {
             PuzzleStat::Plays => "UPDATE puzzles SET plays = plays + 1 WHERE id = $1",
-            PuzzleStat::Completions => {
-                "UPDATE puzzles SET completions = completions + 1 WHERE id = $1"
+            PuzzleStat::Completions { .. } => {
+                "UPDATE puzzles SET completions = completions + 1, completion_times = array_append(completion_times, $2) WHERE id = $1"
             }
         };
 
-        let result = sqlx::query(query)
-            .bind(Uuid::parse_str(puzzle_id)?)
-            .execute(get_puzzles_pool())
-            .await?;
+        let mut query = sqlx::query(query).bind(Uuid::parse_str(puzzle_id)?);
+
+        if let PuzzleStat::Completions {
+            completion_time_seconds,
+        } = stat
+        {
+            query = query.bind(completion_time_seconds as i32);
+        }
+
+        let result = query.execute(get_puzzles_pool()).await?;
 
         if result.rows_affected() == 0 {
             Err(format!("invalid puzzle id: {}", puzzle_id).into())
