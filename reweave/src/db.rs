@@ -319,7 +319,7 @@ pub async fn list_puzzle_records(
         Ok(records)
     } else {
         let mut query = QueryBuilder::<Postgres>::new(
-            "SELECT id, name, description, width, height, letters, plays, completions, likes FROM puzzles",
+            "SELECT id, name, description, width, height, letters, plays, completions, likes, created_at::text AS created_at FROM puzzles",
         );
         let mut has_where = false;
 

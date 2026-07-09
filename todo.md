@@ -1,8 +1,8 @@
 # Todo
 - homepage
-  - [ ] navbar (create, search, user)
-  - [ ] list existing puzzles
-  - [ ] /search page
+  - [x] navbar (create, search, user)
+  - [x] list existing puzzles
+  - [x] /search page
 - update screenshots (as app changes, remove dev stuff, etc)
 - ui/ux
   - [x] popup on puzzle completion
