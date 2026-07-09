@@ -14,6 +14,8 @@ type PuzzleSummary = {
   startingLetters: number;
   totalCells: number;
   givenPercent: number;
+  plays: number;
+  completions: number;
   description: string | null;
 };
 
@@ -233,6 +235,9 @@ export default function SearchPage() {
                 <span>
                   {puzzle.startingLetters}/{puzzle.totalCells} (
                   {puzzle.givenPercent}%) starting letters
+                </span>
+                <span>
+                  {puzzle.plays} plays, {puzzle.completions} completions
                 </span>
               </div>
             </Link>

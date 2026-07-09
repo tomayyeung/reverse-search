@@ -14,6 +14,11 @@ use crate::common::puzzle::Puzzle;
 
 pub static PUZZLES_POOL: OnceLock<PgPool> = OnceLock::new();
 
+pub enum PuzzleStat {
+    Plays,
+    Completions,
+}
+
 /**
  * Necessary structs for puzzles
  */
@@ -234,6 +239,17 @@ async fn read_local_puzzle_record(
     Ok(serde_json::from_str(&data)?)
 }
 
+async fn write_local_puzzle_record(
+    path: impl AsRef<Path>,
+    record: &LocalPuzzleRecord,
+) -> Result<(), Box<dyn Error>> {
+    let json_data = serde_json::to_string(record)?;
+    let mut file = File::create(path).await?;
+    file.write_all(json_data.as_bytes()).await?;
+    file.flush().await?;
+    Ok(())
+}
+
 /**
  * General-use necessary functions
  */
@@ -303,7 +319,7 @@ pub async fn list_puzzle_records(
         Ok(records)
     } else {
         let mut query = QueryBuilder::<Postgres>::new(
-            "SELECT id, name, description, width, height, letters FROM puzzles",
+            "SELECT id, name, description, width, height, letters, plays, completions, likes FROM puzzles",
         );
         let mut has_where = false;
 
@@ -394,5 +410,40 @@ pub async fn insert_puzzle_into_db(puzzle: Puzzle) -> Result<String, Box<dyn Err
         .await?;
 
         Ok(uuid.to_string())
+    }
+}
+
+pub async fn increment_puzzle_stat(
+    puzzle_id: &str,
+    stat: PuzzleStat,
+) -> Result<(), Box<dyn Error>> {
+    if std::env::var("USE_LOCAL_FILES").is_ok() {
+        let path = format!("../puzzles/{}.json", puzzle_id);
+        let mut record = read_local_puzzle_record(&path).await?;
+
+        match stat {
+            PuzzleStat::Plays => record.plays += 1,
+            PuzzleStat::Completions => record.completions += 1,
+        }
+
+        write_local_puzzle_record(path, &record).await
+    } else {
+        let query = match stat {
+            PuzzleStat::Plays => "UPDATE puzzles SET plays = plays + 1 WHERE id = $1",
+            PuzzleStat::Completions => {
+                "UPDATE puzzles SET completions = completions + 1 WHERE id = $1"
+            }
+        };
+
+        let result = sqlx::query(query)
+            .bind(Uuid::parse_str(puzzle_id)?)
+            .execute(get_puzzles_pool())
+            .await?;
+
+        if result.rows_affected() == 0 {
+            Err(format!("invalid puzzle id: {}", puzzle_id).into())
+        } else {
+            Ok(())
+        }
     }
 }

@@ -32,6 +32,7 @@ type BoardProps = {
   setBoardLetters: React.Dispatch<React.SetStateAction<string>>;
   selectedTile?: number;
   setSelectedTile?: React.Dispatch<React.SetStateAction<number>>;
+  onUserLetterPlaced?: () => void;
 };
 
 function Tile({
@@ -73,6 +74,7 @@ export function Board({
   setHardSet,
   selectedTile: controlledSelectedTile,
   setSelectedTile: controlledSetSelectedTile,
+  onUserLetterPlaced,
 }: BoardProps) {
   const boardRef = useRef<HTMLDivElement>(null);
   const [internalSelectedTile, setInternalSelectedTile] = useState(-1);
@@ -173,8 +175,13 @@ export function Board({
       if (/^[a-zA-Z]$/.test(e.key)) {
         // No changing letters when filtering
         // No changing a hard set letter when playing
-        if (!filteringLetters && !(boardType === "Play" && hardSet[idx]))
+        if (!filteringLetters && !(boardType === "Play" && hardSet[idx])) {
           newChar = e.key;
+
+          if (boardType === "Play" && boardLetters[idx] !== newChar) {
+            onUserLetterPlaced?.();
+          }
+        }
       }
 
       // Remove letter
@@ -217,6 +224,7 @@ export function Board({
     setBoardLetters,
     setHardSet,
     setSelectedTile,
+    onUserLetterPlaced,
   ]);
 
   if (width <= 0 || height <= 0 || boardLetters.length === 0) {

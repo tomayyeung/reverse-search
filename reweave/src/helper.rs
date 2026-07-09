@@ -170,6 +170,34 @@ pub async fn load_puzzle(inp: LoadInput) -> Result<puzzle::Puzzle, ErrorResponse
     }
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IncrementPuzzleStatInput {
+    puzzle_id: String,
+    event: String,
+}
+
+#[derive(Serialize)]
+pub struct IncrementPuzzleStatOutput {
+    ok: bool,
+}
+
+pub async fn increment_stat(
+    inp: IncrementPuzzleStatInput,
+) -> Result<IncrementPuzzleStatOutput, ErrorResponse> {
+    let stat = match inp.event.as_str() {
+        "play" => PuzzleStat::Plays,
+        "completion" => PuzzleStat::Completions,
+        _ => return Err(ErrorResponse(String::from("invalid stat event"))),
+    };
+
+    increment_puzzle_stat(&inp.puzzle_id, stat)
+        .await
+        .map_err(|e| ErrorResponse(e.to_string()))?;
+
+    Ok(IncrementPuzzleStatOutput { ok: true })
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PuzzleSummary {
@@ -180,6 +208,8 @@ pub struct PuzzleSummary {
     starting_letters: usize,
     total_cells: usize,
     given_percent: u8,
+    plays: u64,
+    completions: u64,
     description: Option<String>,
 }
 
@@ -278,6 +308,8 @@ pub async fn list_puzzles(inp: ListPuzzlesInput) -> Result<Vec<PuzzleSummary>, E
                 starting_letters,
                 total_cells,
                 given_percent,
+                plays: record.plays,
+                completions: record.completions,
                 description: record.description,
             }
         })

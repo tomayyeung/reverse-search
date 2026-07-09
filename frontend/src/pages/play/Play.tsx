@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 import { Board, BLANK, HOLE } from "@/components/Board";
 import { Menu } from "@/components/Menu";
@@ -23,6 +23,21 @@ type PuzzleResponse = {
   answer: string;
   error?: string;
 };
+
+async function incrementPuzzleStat(
+  puzzleId: string | undefined,
+  event: "play" | "completion",
+) {
+  if (puzzleId === undefined) {
+    return;
+  }
+
+  await fetch(`${API_URL}/api/stats`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ puzzleId, event }),
+  });
+}
 
 export default function PlayPage() {
   const { puzzleId } = useParams();
@@ -50,6 +65,9 @@ export default function PlayPage() {
   const [gaveUp, setGaveUp] = useState(false);
   const [usedHint, setUsedHint] = useState(false);
   const [selectedTile, setSelectedTile] = useState(-1);
+  const playCountedRef = useRef(false);
+  const completionCountedRef = useRef(false);
+  const completionEligibleRef = useRef(false);
 
   const words: PlayWords = puzzleFetched
     ? { kind: "play", ...(check(boardLetters) as Omit<PlayWords, "kind">) }
@@ -103,6 +121,9 @@ export default function PlayPage() {
           setSelectedTile(-1);
           setUsedHint(false);
           setGaveUp(false);
+          playCountedRef.current = false;
+          completionCountedRef.current = false;
+          completionEligibleRef.current = false;
 
           setPuzzleFetched(true);
         } catch {
@@ -130,6 +151,31 @@ export default function PlayPage() {
     };
   }, [puzzleId]);
 
+  function countPlay() {
+    completionEligibleRef.current = true;
+
+    if (playCountedRef.current) {
+      return;
+    }
+
+    playCountedRef.current = true;
+    void incrementPuzzleStat(puzzleId, "play");
+  }
+
+  useEffect(() => {
+    if (
+      !complete ||
+      gaveUp ||
+      completionCountedRef.current ||
+      !completionEligibleRef.current
+    ) {
+      return;
+    }
+
+    completionCountedRef.current = true;
+    void incrementPuzzleStat(puzzleId, "completion");
+  }, [complete, gaveUp, puzzleId]);
+
   function revealTile(idx: number) {
     const answerTile = answer[idx];
 
@@ -142,6 +188,7 @@ export default function PlayPage() {
     setHardSet(hardSet.with(idx, true));
     setStartingLetters([...startingLetters].with(idx, revealedTile).join("")); // make it a permanent change for this session
     setUsedHint(true);
+    completionEligibleRef.current = true;
   }
 
   function revealRandomTile() {
@@ -225,6 +272,7 @@ export default function PlayPage() {
             setBoardLetters={setBoardLetters}
             selectedTile={selectedTile}
             setSelectedTile={setSelectedTile}
+            onUserLetterPlaced={countPlay}
           />
         );
     }

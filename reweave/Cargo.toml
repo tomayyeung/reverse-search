@@ -39,3 +39,7 @@ path = "api/puzzle.rs"
 [[bin]]
 name = "puzzles"
 path = "api/puzzles.rs"
+
+[[bin]]
+name = "stats"
+path = "api/stats.rs"
