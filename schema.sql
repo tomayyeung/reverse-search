@@ -11,6 +11,6 @@ CREATE TABLE "puzzles" (
 	"plays" integer DEFAULT 0,
 	"completions" integer DEFAULT 0,
 	"likes" integer DEFAULT 0,
-	"description" text DEFAULT 0
+	"description" text
 );
 CREATE UNIQUE INDEX "puzzles_pkey" ON "puzzles" ("id");
