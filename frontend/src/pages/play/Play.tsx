@@ -338,9 +338,6 @@ export default function PlayPage() {
               </div>
               {puzzleFetched === true ? (
                 <div className={styles.headerActions}>
-                  {showTimer ? (
-                    <span className={styles.timer}>Timer: {formattedElapsed}</span>
-                  ) : null}
                   <Menu label="⋯" ariaLabel="Puzzle actions">
                     <button
                       type="button"
@@ -394,7 +391,14 @@ export default function PlayPage() {
               Solution revealed.
             </h4>
           </div>
-          <div className={styles.boardSlot}>{getMain(puzzleFetched)}</div>
+          <div className={styles.boardSlot}>
+            {getMain(puzzleFetched)}
+            <div
+              className={`${styles.timer} ${showTimer ? "" : styles.timerHidden}`}
+            >
+              {formattedElapsed}
+            </div>
+          </div>
         </div>
         <WordList listType="Play" words={words} />
       </Wrapper>
