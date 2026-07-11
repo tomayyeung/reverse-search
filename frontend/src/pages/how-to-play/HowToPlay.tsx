@@ -21,8 +21,8 @@ export default function HowToPlayPage() {
       <header className={styles.header}>
         <h1>How to Play</h1>
         <p>
-          Reverse Search is a word-grid puzzle. Fill the board so every required word
-          appears, using the starting letters as fixed clues.
+          Reverse Search is a word-grid puzzle. Fill the board so every required
+          word appears, using the starting letters as fixed clues.
         </p>
       </header>
 
@@ -31,7 +31,7 @@ export default function HowToPlayPage() {
         <ol className={styles.steps}>
           <li>
             Pick a puzzle from the puzzle list. A board might open with some
-            letters already placed.
+            starting letters already placed.
           </li>
           <li>
             Starting letters are fixed. You cannot change or clear them while
@@ -42,29 +42,37 @@ export default function HowToPlayPage() {
             Backspace to clear a letter you added.
           </li>
           <li>
-            There may be holes in the board. They are not playable tiles and do
-            not need letters.
+            There may be holes in the board. They are not playable tiles and
+            letters cannot be placed in them.
           </li>
           <li>
-            Use the word list while you solve. Found words are already on the
-            board, missing words still need to be made, and extra words are
-            words your current board creates that are not part of the puzzle.
+            Use the word list while you solve. Found words in green are already
+            on the board, missing words in red still need to be made, and extra
+            words in gray are words your current board creates that are not part
+            of the puzzle.
           </li>
-          <li>Finish the puzzle by finding all required words.</li>
+          <li>
+            Solve the puzzle by creating all required words, without any extras.
+          </li>
         </ol>
 
         <ScreenshotContainer title="Play page example">
+          <p>update with: show holes</p>
           <img
             src={"/tutorial/Play.jpeg"}
             alt="Partially completed play puzzle with the word list visible"
           />
+        </ScreenshotContainer>
+
+        <ScreenshotContainer title="Solved puzzle">
+          <p>solved puzzle</p>
         </ScreenshotContainer>
       </section>
 
       <section className={styles.section} aria-labelledby="creating-title">
         <h2 id="creating-title">Creating a Puzzle</h2>
         <ol className={styles.steps}>
-          <li>Open Create puzzle from the navbar.</li>
+          <li>Select "Create Puzzle" in the top right corner.</li>
           <li>
             Set the width and height, then update the size. Do this at the
             start, as changing the size clears the current board.
@@ -74,8 +82,8 @@ export default function HowToPlayPage() {
             answer players are trying to reconstruct.
           </li>
           <li>
-            Press Space on an empty tile to toggle a hole. Holes become unusable
-            spaces in the puzzle.
+            Use Space on an empty tile to toggle a hole. Holes have a dotted
+            outilne and become unusable spaces in the puzzle.
           </li>
           <li>
             Check the generated word list. Adjust letters and holes until the
@@ -86,17 +94,22 @@ export default function HowToPlayPage() {
             into clue selection.
           </li>
           <li>
-            Press Backspace on letters to toggle whether they are shown as
-            starting clues or hidden from players.
+            Use Backspace on letters to toggle whether they are shown as
+            starting clues or hidden from players. Hidden letters are grayed
+            out, while given letters are bolded.
           </li>
           <li>
             Enter a puzzle name and submit it. Use the generated play link to
-            test or share the puzzle.
+            share your puzzle with your friends!
           </li>
         </ol>
 
         <ScreenshotContainer title="Create page setup">
-          <img src={"/tutorial/Create.jpeg"} alt="Create page with generated word list" />
+          <p>update with: show holes</p>
+          <img
+            src={"/tutorial/Create.jpeg"}
+            alt="Create page with generated word list"
+          />
         </ScreenshotContainer>
         <ScreenshotContainer title="Locked word list and submission">
           <img
