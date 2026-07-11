@@ -1,6 +1,6 @@
-# Reweave
+# Reverse Search
 
-Reweave is a word-grid puzzle game inspired by Word Hunt-style adjacency rules. A puzzle gives the player a required word list and a partially empty board. The goal is to reconstruct a board of letters that can spell every required word by tracing adjacent tiles.
+Reverse Search is a word-grid puzzle game inspired by Word Hunt-style adjacency rules. A puzzle gives the player a required word list and a partially empty board. The goal is to reconstruct a board of letters that can spell every required word by tracing adjacent tiles.
 
 Players can create their own puzzles, remove selected letters to set the starting challenge, share the generated puzzle ID, and then play the puzzle through the browser.
 

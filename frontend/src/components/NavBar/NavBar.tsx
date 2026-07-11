@@ -7,7 +7,7 @@ export function NavBar() {
     <header className={styles.navbarShell}>
       <div className={styles.navbar}>
         <Link className={styles.brand} to="/">
-          Reweave
+          Reverse Search
         </Link>
         <nav className={styles.links} aria-label="Primary navigation">
           <NavLink

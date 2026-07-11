@@ -21,7 +21,7 @@ export default function HowToPlayPage() {
       <header className={styles.header}>
         <h1>How to Play</h1>
         <p>
-          Reweave is a word-grid puzzle. Fill the board so every required word
+          Reverse Search is a word-grid puzzle. Fill the board so every required word
           appears, using the starting letters as fixed clues.
         </p>
       </header>
