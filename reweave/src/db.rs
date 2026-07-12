@@ -45,9 +45,9 @@ struct PuzzleSummaryRow {
     pub width: i32,
     pub height: i32,
     pub letters: String,
-    pub plays: i32,
-    pub completions: i32,
-    pub likes: i32,
+    pub plays: i64,
+    pub completions: i64,
+    pub likes: i64,
     pub created_at: String,
 }
 
@@ -323,7 +323,7 @@ pub async fn list_puzzle_records(
         Ok(records)
     } else {
         let mut query = QueryBuilder::<Postgres>::new(
-            "SELECT id, name, description, width, height, letters, plays, completions, likes, created_at::text AS created_at FROM puzzles",
+            "SELECT p.id, p.name, p.description, p.width, p.height, p.letters, COALESCE(ps.plays, 0) AS plays, COALESCE(ps.completions, 0) AS completions, COALESCE(ps.likes, 0) AS likes, p.created_at::text AS created_at FROM puzzles p LEFT JOIN puzzle_stats ps ON ps.puzzle_id = p.id",
         );
         let mut has_where = false;
 
@@ -331,9 +331,9 @@ pub async fn list_puzzle_records(
             let pattern = format!("%{}%", text_query);
             push_where_clause(&mut query, &mut has_where);
             query
-                .push("(name ILIKE ")
+                .push("(p.name ILIKE ")
                 .push_bind(pattern.clone())
-                .push(" OR description ILIKE ")
+                .push(" OR p.description ILIKE ")
                 .push_bind(pattern)
                 .push(")");
         }
@@ -341,22 +341,22 @@ pub async fn list_puzzle_records(
         if let Some((min_small, min_large)) = filters.min_dimensions {
             push_where_clause(&mut query, &mut has_where);
             query
-                .push("LEAST(width, height) >= ")
+                .push("LEAST(p.width, p.height) >= ")
                 .push_bind(min_small as i32)
-                .push(" AND GREATEST(width, height) >= ")
+                .push(" AND GREATEST(p.width, p.height) >= ")
                 .push_bind(min_large as i32);
         }
 
         if let Some((max_small, max_large)) = filters.max_dimensions {
             push_where_clause(&mut query, &mut has_where);
             query
-                .push("LEAST(width, height) <= ")
+                .push("LEAST(p.width, p.height) <= ")
                 .push_bind(max_small as i32)
-                .push(" AND GREATEST(width, height) <= ")
+                .push(" AND GREATEST(p.width, p.height) <= ")
                 .push_bind(max_large as i32);
         }
 
-        let percent_sql = "((length(replace(replace(letters, '_', ''), '!', '')) * 100 + (width * height / 2)) / (width * height))";
+        let percent_sql = "((length(replace(replace(p.letters, '_', ''), '!', '')) * 100 + (p.width * p.height / 2)) / (p.width * p.height))";
 
         if let Some(min_given_percent) = filters.min_given_percent {
             push_where_clause(&mut query, &mut has_where);
@@ -375,7 +375,7 @@ pub async fn list_puzzle_records(
         }
 
         query
-            .push(" ORDER BY name ASC LIMIT ")
+            .push(" ORDER BY p.name ASC LIMIT ")
             .push_bind(limit as i64);
 
         let rows = query
@@ -399,6 +399,7 @@ pub async fn insert_puzzle_into_db(puzzle: Puzzle) -> Result<String, Box<dyn Err
         Ok(id)
     } else {
         let words: Vec<String> = puzzle.words.iter().cloned().collect();
+        let mut transaction = get_puzzles_pool().begin().await?;
 
         let uuid: Uuid = sqlx::query_scalar(
             "INSERT INTO puzzles (name, description, width, height, letters, words, answer) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
@@ -410,8 +411,15 @@ pub async fn insert_puzzle_into_db(puzzle: Puzzle) -> Result<String, Box<dyn Err
         .bind(puzzle.letters)
         .bind(&words as &[String])
         .bind(puzzle.answer)
-        .fetch_one(get_puzzles_pool())
+        .fetch_one(&mut *transaction)
         .await?;
+
+        sqlx::query("INSERT INTO puzzle_stats (puzzle_id) VALUES ($1)")
+            .bind(uuid)
+            .execute(&mut *transaction)
+            .await?;
+
+        transaction.commit().await?;
 
         Ok(uuid.to_string())
     }
@@ -437,23 +445,40 @@ pub async fn increment_puzzle_stat(
 
         write_local_puzzle_record(path, &record).await
     } else {
-        let query = match stat {
-            PuzzleStat::Plays => "UPDATE puzzles SET plays = plays + 1 WHERE id = $1",
-            PuzzleStat::Completions { .. } => {
-                "UPDATE puzzles SET completions = completions + 1, completion_times = array_append(completion_times, $2) WHERE id = $1"
+        let puzzle_id = Uuid::parse_str(puzzle_id)?;
+
+        let result = match stat {
+            PuzzleStat::Plays => {
+                sqlx::query("UPDATE puzzle_stats SET plays = plays + 1 WHERE puzzle_id = $1")
+                    .bind(puzzle_id)
+                    .execute(get_puzzles_pool())
+                    .await?
+            }
+            PuzzleStat::Completions {
+                completion_time_seconds,
+            } => {
+                let mut transaction = get_puzzles_pool().begin().await?;
+                let result = sqlx::query(
+                    "UPDATE puzzle_stats SET completions = completions + 1 WHERE puzzle_id = $1",
+                )
+                .bind(puzzle_id)
+                .execute(&mut *transaction)
+                .await?;
+
+                if result.rows_affected() > 0 {
+                    sqlx::query(
+                        "INSERT INTO puzzle_completion_events (puzzle_id, completion_time_seconds) VALUES ($1, $2)",
+                    )
+                    .bind(puzzle_id)
+                    .bind(completion_time_seconds as i32)
+                    .execute(&mut *transaction)
+                    .await?;
+                }
+
+                transaction.commit().await?;
+                result
             }
         };
-
-        let mut query = sqlx::query(query).bind(Uuid::parse_str(puzzle_id)?);
-
-        if let PuzzleStat::Completions {
-            completion_time_seconds,
-        } = stat
-        {
-            query = query.bind(completion_time_seconds as i32);
-        }
-
-        let result = query.execute(get_puzzles_pool()).await?;
 
         if result.rows_affected() == 0 {
             Err(format!("invalid puzzle id: {}", puzzle_id).into())
