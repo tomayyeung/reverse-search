@@ -1,18 +1,31 @@
+#[cfg(feature = "local-files")]
 use chrono::Utc;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+#[cfg(feature = "local-files")]
+use serde::Serialize;
 use sqlx::{PgPool, Postgres, QueryBuilder};
+#[cfg(feature = "local-files")]
 use std::collections::HashSet;
 use std::error::Error;
+#[cfg(feature = "local-files")]
 use std::path::Path;
 use std::sync::OnceLock;
+#[cfg(feature = "local-files")]
 use tokio::fs;
+#[cfg(feature = "local-files")]
 use tokio::fs::File;
+#[cfg(feature = "local-files")]
 use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
 use crate::common::puzzle::Puzzle;
 
 pub static PUZZLES_POOL: OnceLock<PgPool> = OnceLock::new();
+
+#[cfg(feature = "local-files")]
+fn use_local_files() -> bool {
+    std::env::var("USE_LOCAL_FILES").is_ok()
+}
 
 #[derive(Clone, Copy)]
 pub enum PuzzleStat {
@@ -109,6 +122,7 @@ pub struct PuzzleRecordFilters {
     pub max_given_percent: Option<u8>,
 }
 
+#[cfg(feature = "local-files")]
 fn starting_letters(letters: &str) -> usize {
     letters
         .chars()
@@ -116,6 +130,7 @@ fn starting_letters(letters: &str) -> usize {
         .count()
 }
 
+#[cfg(feature = "local-files")]
 fn given_percent(width: usize, height: usize, letters: &str) -> u8 {
     let total_cells = width * height;
 
@@ -126,10 +141,12 @@ fn given_percent(width: usize, height: usize, letters: &str) -> u8 {
     }
 }
 
+#[cfg(feature = "local-files")]
 fn normalized_dimensions(width: usize, height: usize) -> (usize, usize) {
     (width.min(height), width.max(height))
 }
 
+#[cfg(feature = "local-files")]
 fn matches_filters(record: &PuzzleSummaryRecord, filters: &PuzzleRecordFilters) -> bool {
     if let Some(query) = &filters.query {
         let query = query.to_lowercase();
@@ -185,7 +202,8 @@ fn push_where_clause(query: &mut QueryBuilder<Postgres>, has_where: &mut bool) {
  * Structs and functions for local development
  */
 
-/// A record of a local puzzle,
+/// A record of a local puzzle.
+#[cfg(feature = "local-files")]
 #[derive(Deserialize, Serialize)]
 struct LocalPuzzleRecord {
     name: String,
@@ -203,6 +221,7 @@ struct LocalPuzzleRecord {
     created_at: String,
 }
 
+#[cfg(feature = "local-files")]
 impl From<Puzzle> for LocalPuzzleRecord {
     fn from(puzzle: Puzzle) -> Self {
         LocalPuzzleRecord {
@@ -222,6 +241,7 @@ impl From<Puzzle> for LocalPuzzleRecord {
     }
 }
 
+#[cfg(feature = "local-files")]
 impl From<LocalPuzzleRecord> for Puzzle {
     fn from(record: LocalPuzzleRecord) -> Self {
         Puzzle {
@@ -236,6 +256,7 @@ impl From<LocalPuzzleRecord> for Puzzle {
     }
 }
 
+#[cfg(feature = "local-files")]
 async fn read_local_puzzle_record(
     path: impl AsRef<Path>,
 ) -> Result<LocalPuzzleRecord, Box<dyn Error>> {
@@ -243,6 +264,7 @@ async fn read_local_puzzle_record(
     Ok(serde_json::from_str(&data)?)
 }
 
+#[cfg(feature = "local-files")]
 async fn write_local_puzzle_record(
     path: impl AsRef<Path>,
     record: &LocalPuzzleRecord,
@@ -264,31 +286,33 @@ pub fn get_puzzles_pool() -> &'static PgPool {
 }
 
 pub async fn get_puzzle(puzzle_id: &str) -> Option<Puzzle> {
-    if std::env::var("USE_LOCAL_FILES").is_ok() {
-        read_local_puzzle_record(format!("../puzzles/{}.json", puzzle_id))
+    #[cfg(feature = "local-files")]
+    if use_local_files() {
+        return read_local_puzzle_record(format!("../puzzles/{}.json", puzzle_id))
             .await
             .ok()
-            .map(Puzzle::from)
-    } else {
-        let Ok(puzzle_row) = sqlx::query_as::<_, PuzzleRow>(
-            "SELECT name, description, width, height, letters, words, answer FROM puzzles WHERE id = $1",
-        )
-        .bind(Uuid::parse_str(puzzle_id).ok()?)
-        .fetch_one(get_puzzles_pool())
-        .await
-        else {
-            return None;
-        };
-
-        Some(Puzzle::from(puzzle_row))
+            .map(Puzzle::from);
     }
+
+    let Ok(puzzle_row) = sqlx::query_as::<_, PuzzleRow>(
+        "SELECT name, description, width, height, letters, words, answer FROM puzzles WHERE id = $1",
+    )
+    .bind(Uuid::parse_str(puzzle_id).ok()?)
+    .fetch_one(get_puzzles_pool())
+    .await
+    else {
+        return None;
+    };
+
+    Some(Puzzle::from(puzzle_row))
 }
 
 pub async fn list_puzzle_records(
     limit: usize,
     filters: PuzzleRecordFilters,
 ) -> Result<Vec<PuzzleSummaryRecord>, Box<dyn Error>> {
-    if std::env::var("USE_LOCAL_FILES").is_ok() {
+    #[cfg(feature = "local-files")]
+    if use_local_files() {
         let mut records = Vec::new();
         let mut entries = fs::read_dir("../puzzles").await?;
 
@@ -320,75 +344,76 @@ pub async fn list_puzzle_records(
         records.retain(|record| matches_filters(record, &filters));
         records.sort_by(|a, b| a.name.cmp(&b.name));
         records.truncate(limit);
-        Ok(records)
-    } else {
-        let mut query = QueryBuilder::<Postgres>::new(
-            "SELECT p.id, p.name, p.description, p.width, p.height, p.letters, COALESCE(ps.plays, 0) AS plays, COALESCE(ps.completions, 0) AS completions, COALESCE(ps.likes, 0) AS likes, p.created_at::text AS created_at FROM puzzles p LEFT JOIN puzzle_stats ps ON ps.puzzle_id = p.id",
-        );
-        let mut has_where = false;
-
-        if let Some(text_query) = filters.query {
-            let pattern = format!("%{}%", text_query);
-            push_where_clause(&mut query, &mut has_where);
-            query
-                .push("(p.name ILIKE ")
-                .push_bind(pattern.clone())
-                .push(" OR p.description ILIKE ")
-                .push_bind(pattern)
-                .push(")");
-        }
-
-        if let Some((min_small, min_large)) = filters.min_dimensions {
-            push_where_clause(&mut query, &mut has_where);
-            query
-                .push("LEAST(p.width, p.height) >= ")
-                .push_bind(min_small as i32)
-                .push(" AND GREATEST(p.width, p.height) >= ")
-                .push_bind(min_large as i32);
-        }
-
-        if let Some((max_small, max_large)) = filters.max_dimensions {
-            push_where_clause(&mut query, &mut has_where);
-            query
-                .push("LEAST(p.width, p.height) <= ")
-                .push_bind(max_small as i32)
-                .push(" AND GREATEST(p.width, p.height) <= ")
-                .push_bind(max_large as i32);
-        }
-
-        let percent_sql = "((length(replace(replace(p.letters, '_', ''), '!', '')) * 100 + (p.width * p.height / 2)) / (p.width * p.height))";
-
-        if let Some(min_given_percent) = filters.min_given_percent {
-            push_where_clause(&mut query, &mut has_where);
-            query
-                .push(percent_sql)
-                .push(" >= ")
-                .push_bind(min_given_percent as i32);
-        }
-
-        if let Some(max_given_percent) = filters.max_given_percent {
-            push_where_clause(&mut query, &mut has_where);
-            query
-                .push(percent_sql)
-                .push(" <= ")
-                .push_bind(max_given_percent as i32);
-        }
-
-        query
-            .push(" ORDER BY p.name ASC LIMIT ")
-            .push_bind(limit as i64);
-
-        let rows = query
-            .build_query_as::<PuzzleSummaryRow>()
-            .fetch_all(get_puzzles_pool())
-            .await?;
-
-        Ok(rows.into_iter().map(PuzzleSummaryRecord::from).collect())
+        return Ok(records);
     }
+
+    let mut query = QueryBuilder::<Postgres>::new(
+        "SELECT p.id, p.name, p.description, p.width, p.height, p.letters, COALESCE(ps.plays, 0) AS plays, COALESCE(ps.completions, 0) AS completions, COALESCE(ps.likes, 0) AS likes, p.created_at::text AS created_at FROM puzzles p LEFT JOIN puzzle_stats ps ON ps.puzzle_id = p.id",
+    );
+    let mut has_where = false;
+
+    if let Some(text_query) = filters.query {
+        let pattern = format!("%{}%", text_query);
+        push_where_clause(&mut query, &mut has_where);
+        query
+            .push("(p.name ILIKE ")
+            .push_bind(pattern.clone())
+            .push(" OR p.description ILIKE ")
+            .push_bind(pattern)
+            .push(")");
+    }
+
+    if let Some((min_small, min_large)) = filters.min_dimensions {
+        push_where_clause(&mut query, &mut has_where);
+        query
+            .push("LEAST(p.width, p.height) >= ")
+            .push_bind(min_small as i32)
+            .push(" AND GREATEST(p.width, p.height) >= ")
+            .push_bind(min_large as i32);
+    }
+
+    if let Some((max_small, max_large)) = filters.max_dimensions {
+        push_where_clause(&mut query, &mut has_where);
+        query
+            .push("LEAST(p.width, p.height) <= ")
+            .push_bind(max_small as i32)
+            .push(" AND GREATEST(p.width, p.height) <= ")
+            .push_bind(max_large as i32);
+    }
+
+    let percent_sql = "((length(replace(replace(p.letters, '_', ''), '!', '')) * 100 + (p.width * p.height / 2)) / (p.width * p.height))";
+
+    if let Some(min_given_percent) = filters.min_given_percent {
+        push_where_clause(&mut query, &mut has_where);
+        query
+            .push(percent_sql)
+            .push(" >= ")
+            .push_bind(min_given_percent as i32);
+    }
+
+    if let Some(max_given_percent) = filters.max_given_percent {
+        push_where_clause(&mut query, &mut has_where);
+        query
+            .push(percent_sql)
+            .push(" <= ")
+            .push_bind(max_given_percent as i32);
+    }
+
+    query
+        .push(" ORDER BY p.name ASC LIMIT ")
+        .push_bind(limit as i64);
+
+    let rows = query
+        .build_query_as::<PuzzleSummaryRow>()
+        .fetch_all(get_puzzles_pool())
+        .await?;
+
+    Ok(rows.into_iter().map(PuzzleSummaryRecord::from).collect())
 }
 
 pub async fn insert_puzzle_into_db(puzzle: Puzzle) -> Result<String, Box<dyn Error>> {
-    if std::env::var("USE_LOCAL_FILES").is_ok() {
+    #[cfg(feature = "local-files")]
+    if use_local_files() {
         let record = LocalPuzzleRecord::from(puzzle);
         let id = record.name.clone();
         let json_data = serde_json::to_string(&record)?;
@@ -396,40 +421,41 @@ pub async fn insert_puzzle_into_db(puzzle: Puzzle) -> Result<String, Box<dyn Err
         file.write_all(json_data.as_bytes()).await?;
         file.flush().await?;
 
-        Ok(id)
-    } else {
-        let words: Vec<String> = puzzle.words.iter().cloned().collect();
-        let mut transaction = get_puzzles_pool().begin().await?;
+        return Ok(id);
+    }
 
-        let uuid: Uuid = sqlx::query_scalar(
-            "INSERT INTO puzzles (name, description, width, height, letters, words, answer) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
-        )
-        .bind(puzzle.name)
-        .bind(puzzle.description)
-        .bind(puzzle.width as i32)
-        .bind(puzzle.height as i32)
-        .bind(puzzle.letters)
-        .bind(&words as &[String])
-        .bind(puzzle.answer)
-        .fetch_one(&mut *transaction)
+    let words: Vec<String> = puzzle.words.iter().cloned().collect();
+    let mut transaction = get_puzzles_pool().begin().await?;
+
+    let uuid: Uuid = sqlx::query_scalar(
+        "INSERT INTO puzzles (name, description, width, height, letters, words, answer) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
+    )
+    .bind(puzzle.name)
+    .bind(puzzle.description)
+    .bind(puzzle.width as i32)
+    .bind(puzzle.height as i32)
+    .bind(puzzle.letters)
+    .bind(&words as &[String])
+    .bind(puzzle.answer)
+    .fetch_one(&mut *transaction)
+    .await?;
+
+    sqlx::query("INSERT INTO puzzle_stats (puzzle_id) VALUES ($1)")
+        .bind(uuid)
+        .execute(&mut *transaction)
         .await?;
 
-        sqlx::query("INSERT INTO puzzle_stats (puzzle_id) VALUES ($1)")
-            .bind(uuid)
-            .execute(&mut *transaction)
-            .await?;
+    transaction.commit().await?;
 
-        transaction.commit().await?;
-
-        Ok(uuid.to_string())
-    }
+    Ok(uuid.to_string())
 }
 
 pub async fn increment_puzzle_stat(
     puzzle_id: &str,
     stat: PuzzleStat,
 ) -> Result<(), Box<dyn Error>> {
-    if std::env::var("USE_LOCAL_FILES").is_ok() {
+    #[cfg(feature = "local-files")]
+    if use_local_files() {
         let path = format!("../puzzles/{}.json", puzzle_id);
         let mut record = read_local_puzzle_record(&path).await?;
 
@@ -443,47 +469,47 @@ pub async fn increment_puzzle_stat(
             }
         }
 
-        write_local_puzzle_record(path, &record).await
-    } else {
-        let puzzle_id = Uuid::parse_str(puzzle_id)?;
+        return write_local_puzzle_record(path, &record).await;
+    }
 
-        let result = match stat {
-            PuzzleStat::Plays => {
-                sqlx::query("UPDATE puzzle_stats SET plays = plays + 1 WHERE puzzle_id = $1")
-                    .bind(puzzle_id)
-                    .execute(get_puzzles_pool())
-                    .await?
-            }
-            PuzzleStat::Completions {
-                completion_time_seconds,
-            } => {
-                let mut transaction = get_puzzles_pool().begin().await?;
-                let result = sqlx::query(
-                    "UPDATE puzzle_stats SET completions = completions + 1 WHERE puzzle_id = $1",
+    let puzzle_id = Uuid::parse_str(puzzle_id)?;
+
+    let result = match stat {
+        PuzzleStat::Plays => {
+            sqlx::query("UPDATE puzzle_stats SET plays = plays + 1 WHERE puzzle_id = $1")
+                .bind(puzzle_id)
+                .execute(get_puzzles_pool())
+                .await?
+        }
+        PuzzleStat::Completions {
+            completion_time_seconds,
+        } => {
+            let mut transaction = get_puzzles_pool().begin().await?;
+            let result = sqlx::query(
+                "UPDATE puzzle_stats SET completions = completions + 1 WHERE puzzle_id = $1",
+            )
+            .bind(puzzle_id)
+            .execute(&mut *transaction)
+            .await?;
+
+            if result.rows_affected() > 0 {
+                sqlx::query(
+                    "INSERT INTO puzzle_completion_events (puzzle_id, completion_time_seconds) VALUES ($1, $2)",
                 )
                 .bind(puzzle_id)
+                .bind(completion_time_seconds as i32)
                 .execute(&mut *transaction)
                 .await?;
-
-                if result.rows_affected() > 0 {
-                    sqlx::query(
-                        "INSERT INTO puzzle_completion_events (puzzle_id, completion_time_seconds) VALUES ($1, $2)",
-                    )
-                    .bind(puzzle_id)
-                    .bind(completion_time_seconds as i32)
-                    .execute(&mut *transaction)
-                    .await?;
-                }
-
-                transaction.commit().await?;
-                result
             }
-        };
 
-        if result.rows_affected() == 0 {
-            Err(format!("invalid puzzle id: {}", puzzle_id).into())
-        } else {
-            Ok(())
+            transaction.commit().await?;
+            result
         }
+    };
+
+    if result.rows_affected() == 0 {
+        Err(format!("invalid puzzle id: {}", puzzle_id).into())
+    } else {
+        Ok(())
     }
 }

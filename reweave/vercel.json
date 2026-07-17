@@ -1,4 +1,5 @@
 {
+  "ignoreCommand": "sh scripts/vercel-ignore.sh",
   "rewrites": [
     { "source": "/api/puzzle/:puzzle_id", "destination": "/api/puzzle?puzzle_id=:puzzle_id" },
     { "source": "/api/(.*)", "destination": "/api/api" }

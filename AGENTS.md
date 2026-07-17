@@ -29,14 +29,14 @@
 - Type-check/build the current checked-in frontend package with `pnpm --dir frontend run build`; this assumes `frontend/pkg/` already exists.
 - Run frontend dev server: `pnpm --dir frontend run dev`.
 - Lint frontend: `pnpm --dir frontend run lint`.
-- Run backend locally from `reweave/` with `USE_LOCAL_FILES=1 vc dev` or `USE_LOCAL_FILES=1 vercel dev`; create repo-root `puzzles/` first for local-file creates.
+- Run backend locally from `reweave/` with `DATABASE_URL=... vc dev` or `DATABASE_URL=... vercel dev`; local JSON-file storage requires compiling with the `local-files` Cargo feature and setting `USE_LOCAL_FILES=1`.
 - Test shared/backend Rust crate: `cargo test -p reweave`.
 - Run one Rust test with a filter, for example `cargo test -p reweave common::board::tests::find1`.
 - Check the WASM crate against its real target with `cargo check -p frontend --target wasm32-unknown-unknown`.
 - Check Rust formatting with `cargo fmt --check`; run `cargo fmt` if Rust edits need formatting.
 
 ## Runtime And Deploy
-- Root `vercel.json` deploys the frontend, installs `wasm32-unknown-unknown`, installs `wasm-pack`, installs global `pnpm@9`, then builds `frontend/dist`.
+- Root `vercel.json` deploys the frontend, installs `wasm32-unknown-unknown`, downloads a prebuilt `wasm-pack`, enables Corepack, then builds `frontend/dist`.
 - Backend is deployed separately from `reweave/`; `reweave/vercel.json` rewrites `/api/puzzle/:puzzle_id` to `/api/puzzle?puzzle_id=:puzzle_id` and includes CORS headers for `/api/(.*)`.
 - Vite proxies `/api` to `http://localhost:3000`; run the backend dev server there when testing frontend API calls locally.
 - Frontend API base is `VITE_API_URL`; if unset it uses same-origin/proxied `/api`.

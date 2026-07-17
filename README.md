@@ -128,21 +128,21 @@ pnpm --dir frontend run dev
 
 ### Backend
 
-The backend is built around Vercel serverless functions and is usually run locally with the Vercel CLI from `reweave/`:
+The backend is built around Vercel serverless functions and is usually run locally with the Vercel CLI from `reweave/` using `DATABASE_URL`:
 
 ```sh
 cd reweave
-USE_LOCAL_FILES=1 vc dev
+DATABASE_URL=... vc dev
 ```
 
 or:
 
 ```sh
 cd reweave
-USE_LOCAL_FILES=1 vercel dev
+DATABASE_URL=... vercel dev
 ```
 
-`USE_LOCAL_FILES=1` lets contributors run the backend without access to the production database or this project's Vercel environment variables. In this mode, puzzles are read from and written to `../puzzles/*.json` relative to the backend process, so create a repo-root `puzzles/` directory before creating puzzles locally:
+Local JSON-file storage is available when the backend is compiled with the `local-files` Cargo feature and `USE_LOCAL_FILES=1` is set. In this mode, puzzles are read from and written to `../puzzles/*.json` relative to the backend process, so create a repo-root `puzzles/` directory before creating puzzles locally:
 
 ```sh
 mkdir puzzles
@@ -181,7 +181,7 @@ cargo fmt --check
 
 The frontend reads `VITE_API_URL` as its API base URL. If it is unset, requests use same-origin `/api`; Vite proxies `/api` to `http://localhost:3000` during local frontend development.
 
-The backend requires `DATABASE_URL` unless `USE_LOCAL_FILES` is set. With `USE_LOCAL_FILES`, puzzles are read and written under `../puzzles/` relative to the backend process.
+The backend requires `DATABASE_URL` unless it is compiled with the `local-files` Cargo feature and `USE_LOCAL_FILES` is set. With local-file storage enabled, puzzles are read and written under `../puzzles/` relative to the backend process.
 
 ## Deploy
 

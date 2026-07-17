@@ -2,7 +2,8 @@
   "rewrites": [
     {"source": "/(.*)", "destination": "/index.html"}
   ],
-  "installCommand": "rustup target add wasm32-unknown-unknown && cargo install wasm-pack && npm i -g pnpm@9 && pnpm install --dir frontend",
-  "buildCommand": "wasm-pack build frontend --target bundler --out-dir pkg && pnpm --dir frontend run build",
+  "installCommand": "sh scripts/vercel-install.sh",
+  "ignoreCommand": "sh scripts/vercel-ignore.sh",
+  "buildCommand": "$HOME/.cargo/bin/wasm-pack build frontend --target bundler --out-dir pkg && pnpm --dir frontend run build",
   "outputDirectory": "frontend/dist"
 }
