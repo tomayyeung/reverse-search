@@ -29,7 +29,7 @@
 - Type-check/build the current checked-in frontend package with `pnpm --dir frontend run build`; this assumes `frontend/pkg/` already exists.
 - Run frontend dev server: `pnpm --dir frontend run dev`.
 - Lint frontend: `pnpm --dir frontend run lint`.
-- Run backend locally from `reweave/` with `DATABASE_URL=... vc dev` or `DATABASE_URL=... vercel dev`; local JSON-file storage requires compiling with the `local-files` Cargo feature and setting `USE_LOCAL_FILES=1`.
+- Run backend locally from `reweave/` with `DATABASE_URL=... vc dev` or `DATABASE_URL=... vercel dev`; use a local PostgreSQL database URL for development.
 - Test shared/backend Rust crate: `cargo test -p reweave`.
 - Run one Rust test with a filter, for example `cargo test -p reweave common::board::tests::find1`.
 - Check the WASM crate against its real target with `cargo check -p frontend --target wasm32-unknown-unknown`.
@@ -43,10 +43,9 @@
 - Frontend routes in `App.tsx` are `/`, `/how-to-play`, `/create`, and `/play/:puzzleId`.
 
 ## Data And Env
-- Backend DB code requires `DATABASE_URL` unless `USE_LOCAL_FILES` is set.
-- With `USE_LOCAL_FILES`, puzzles are read/written under `../puzzles/` relative to the backend process.
-- The database code expects a `puzzles` table with `id`, `name`, `width`, `height`, `letters`, `words`, and `answer`; `id` is returned as a UUID string.
-- No SQL migrations are present in the repo; do not assume a migration workflow exists.
+- Backend DB code always requires `DATABASE_URL`.
+- The database code expects the `puzzles`, `puzzle_stats`, and `puzzle_completion_events` tables defined in `schema.sql`; puzzle IDs are returned as UUID strings.
+- No migration runner is present in the repo; local databases should be initialized from `schema.sql`.
 
 ## Game And API Shape
 - `POST /api/create` accepts JSON with `name`, `width`, `height`, `letters`, `words`, and `answer`, then returns `{ "id": string }` or `{ "error": string }`.

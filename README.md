@@ -39,7 +39,6 @@ Core game logic is written in Rust and shared between the backend and frontend.
 - WebAssembly generated with `wasm-pack` so the frontend can run Rust board and word-checking logic locally.
 - Vercel serverless Rust functions for puzzle creation and loading.
 - PostgreSQL via `sqlx` for persisted puzzles.
-- Optional local JSON-file storage through `USE_LOCAL_FILES` for backend development.
 - `pnpm` for frontend package management.
 
 ## Project Structure
@@ -50,7 +49,7 @@ Core game logic is written in Rust and shared between the backend and frontend.
 │   ├── api/                 # Vercel serverless function entrypoints
 │   └── src/
 │       ├── common/          # Board, puzzle, and word/trie logic
-│       ├── db.rs            # Postgres/local-file puzzle persistence
+│       ├── db.rs            # Postgres puzzle persistence
 │       └── helper.rs        # API request/response helpers
 ├── frontend/                # React app plus Rust WASM crate
 │   ├── src/
@@ -62,6 +61,7 @@ Core game logic is written in Rust and shared between the backend and frontend.
 ├── wordlist/                # Standalone word-list generator
 ├── wordlist/wordlist.txt    # Dictionary embedded into the WASM crate
 ├── Cargo.toml               # Rust workspace config
+├── schema.sql               # PostgreSQL schema for backend persistence
 └── vercel.json              # Frontend deploy config
 ```
 
@@ -75,17 +75,13 @@ The backend is deployed separately from the frontend under `reweave/`.
 - `GET /api/puzzle?puzzle_id=<id>` loads a puzzle by ID.
 - `GET /api/puzzle/:puzzle_id` is also supported by the backend Vercel rewrite and fallback path parsing.
 
-The database expects a `puzzles` table with these fields:
+The database expects the tables defined in `schema.sql`:
 
-- `id`
-- `name`
-- `width`
-- `height`
-- `letters`
-- `words`
-- `answer`
+- `puzzles` stores puzzle boards, word lists, and metadata.
+- `puzzle_stats` stores aggregate play, completion, and like counts.
+- `puzzle_completion_events` stores individual completion times.
 
-There are currently no SQL migrations in the repo.
+There is currently no migration runner in the repo; apply `schema.sql` to a local PostgreSQL database before running the backend locally.
 
 ## Frontend Data Model
 
@@ -128,7 +124,7 @@ pnpm --dir frontend run dev
 
 ### Backend
 
-The backend is built around Vercel serverless functions and is usually run locally with the Vercel CLI from `reweave/` using `DATABASE_URL`:
+The backend is built around Vercel serverless functions and is run locally with the Vercel CLI from `reweave/`. Provide `DATABASE_URL` for a local PostgreSQL database, using the same environment variable shape as production:
 
 ```sh
 cd reweave
@@ -142,17 +138,13 @@ cd reweave
 DATABASE_URL=... vercel dev
 ```
 
-Local JSON-file storage is available when the backend is compiled with the `local-files` Cargo feature and `USE_LOCAL_FILES=1` is set. In this mode, puzzles are read from and written to `../puzzles/*.json` relative to the backend process, so create a repo-root `puzzles/` directory before creating puzzles locally:
+The local database must have the schema from `schema.sql` applied before creating or loading puzzles. For example, from the repo root:
 
 ```sh
-mkdir puzzles
+psql "$DATABASE_URL" -f schema.sql
 ```
 
-In local-file mode, created puzzle IDs are based on the puzzle name because the filename is `../puzzles/<name>.json`.
-
 Someone running the backend this way should not need access to the production Vercel project, but the Vercel CLI may still ask them to log in and link or create their own local Vercel project.
-
-To use database-backed storage instead, omit `USE_LOCAL_FILES` and provide `DATABASE_URL`. The database must already have a compatible `puzzles` table; this repo does not currently include migrations.
 
 ### Build And Checks
 
@@ -181,7 +173,7 @@ cargo fmt --check
 
 The frontend reads `VITE_API_URL` as its API base URL. If it is unset, requests use same-origin `/api`; Vite proxies `/api` to `http://localhost:3000` during local frontend development.
 
-The backend requires `DATABASE_URL` unless it is compiled with the `local-files` Cargo feature and `USE_LOCAL_FILES` is set. With local-file storage enabled, puzzles are read and written under `../puzzles/` relative to the backend process.
+The backend requires `DATABASE_URL` in all environments. Use a local PostgreSQL database URL for development and the production PostgreSQL URL in deployed environments.
 
 ## Deploy
 

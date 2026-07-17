@@ -1,31 +1,12 @@
-#[cfg(feature = "local-files")]
-use chrono::Utc;
 use serde::Deserialize;
-#[cfg(feature = "local-files")]
-use serde::Serialize;
 use sqlx::{PgPool, Postgres, QueryBuilder};
-#[cfg(feature = "local-files")]
-use std::collections::HashSet;
 use std::error::Error;
-#[cfg(feature = "local-files")]
-use std::path::Path;
 use std::sync::OnceLock;
-#[cfg(feature = "local-files")]
-use tokio::fs;
-#[cfg(feature = "local-files")]
-use tokio::fs::File;
-#[cfg(feature = "local-files")]
-use tokio::io::AsyncWriteExt;
 use uuid::Uuid;
 
 use crate::common::puzzle::Puzzle;
 
 pub static PUZZLES_POOL: OnceLock<PgPool> = OnceLock::new();
-
-#[cfg(feature = "local-files")]
-fn use_local_files() -> bool {
-    std::env::var("USE_LOCAL_FILES").is_ok()
-}
 
 #[derive(Clone, Copy)]
 pub enum PuzzleStat {
@@ -122,73 +103,6 @@ pub struct PuzzleRecordFilters {
     pub max_given_percent: Option<u8>,
 }
 
-#[cfg(feature = "local-files")]
-fn starting_letters(letters: &str) -> usize {
-    letters
-        .chars()
-        .filter(|letter| *letter != '_' && *letter != '!')
-        .count()
-}
-
-#[cfg(feature = "local-files")]
-fn given_percent(width: usize, height: usize, letters: &str) -> u8 {
-    let total_cells = width * height;
-
-    if total_cells == 0 {
-        0
-    } else {
-        ((starting_letters(letters) * 100 + total_cells / 2) / total_cells) as u8
-    }
-}
-
-#[cfg(feature = "local-files")]
-fn normalized_dimensions(width: usize, height: usize) -> (usize, usize) {
-    (width.min(height), width.max(height))
-}
-
-#[cfg(feature = "local-files")]
-fn matches_filters(record: &PuzzleSummaryRecord, filters: &PuzzleRecordFilters) -> bool {
-    if let Some(query) = &filters.query {
-        let query = query.to_lowercase();
-        let name = record.name.to_lowercase();
-        let description = record.description.as_deref().unwrap_or("").to_lowercase();
-
-        if !name.contains(&query) && !description.contains(&query) {
-            return false;
-        }
-    }
-
-    let dimensions = normalized_dimensions(record.width, record.height);
-
-    if let Some(min_dimensions) = filters.min_dimensions {
-        if dimensions.0 < min_dimensions.0 || dimensions.1 < min_dimensions.1 {
-            return false;
-        }
-    }
-
-    if let Some(max_dimensions) = filters.max_dimensions {
-        if dimensions.0 > max_dimensions.0 || dimensions.1 > max_dimensions.1 {
-            return false;
-        }
-    }
-
-    let percent = given_percent(record.width, record.height, &record.letters);
-
-    if let Some(min_given_percent) = filters.min_given_percent {
-        if percent < min_given_percent {
-            return false;
-        }
-    }
-
-    if let Some(max_given_percent) = filters.max_given_percent {
-        if percent > max_given_percent {
-            return false;
-        }
-    }
-
-    true
-}
-
 fn push_where_clause(query: &mut QueryBuilder<Postgres>, has_where: &mut bool) {
     if *has_where {
         query.push(" AND ");
@@ -196,84 +110,6 @@ fn push_where_clause(query: &mut QueryBuilder<Postgres>, has_where: &mut bool) {
         query.push(" WHERE ");
         *has_where = true;
     }
-}
-
-/**
- * Structs and functions for local development
- */
-
-/// A record of a local puzzle.
-#[cfg(feature = "local-files")]
-#[derive(Deserialize, Serialize)]
-struct LocalPuzzleRecord {
-    name: String,
-    description: Option<String>,
-    width: usize,
-    height: usize,
-    letters: String,
-    words: HashSet<String>,
-    answer: String,
-    plays: u64,
-    completions: u64,
-    #[serde(default)]
-    completion_times: Vec<u32>,
-    likes: u64,
-    created_at: String,
-}
-
-#[cfg(feature = "local-files")]
-impl From<Puzzle> for LocalPuzzleRecord {
-    fn from(puzzle: Puzzle) -> Self {
-        LocalPuzzleRecord {
-            name: puzzle.name,
-            description: puzzle.description,
-            width: puzzle.width,
-            height: puzzle.height,
-            letters: puzzle.letters,
-            words: puzzle.words,
-            answer: puzzle.answer,
-            plays: 0,
-            completions: 0,
-            completion_times: Vec::new(),
-            likes: 0,
-            created_at: Utc::now().to_rfc3339(),
-        }
-    }
-}
-
-#[cfg(feature = "local-files")]
-impl From<LocalPuzzleRecord> for Puzzle {
-    fn from(record: LocalPuzzleRecord) -> Self {
-        Puzzle {
-            name: record.name,
-            description: record.description,
-            width: record.width,
-            height: record.height,
-            letters: record.letters,
-            words: record.words,
-            answer: record.answer,
-        }
-    }
-}
-
-#[cfg(feature = "local-files")]
-async fn read_local_puzzle_record(
-    path: impl AsRef<Path>,
-) -> Result<LocalPuzzleRecord, Box<dyn Error>> {
-    let data = fs::read_to_string(path).await?;
-    Ok(serde_json::from_str(&data)?)
-}
-
-#[cfg(feature = "local-files")]
-async fn write_local_puzzle_record(
-    path: impl AsRef<Path>,
-    record: &LocalPuzzleRecord,
-) -> Result<(), Box<dyn Error>> {
-    let json_data = serde_json::to_string(record)?;
-    let mut file = File::create(path).await?;
-    file.write_all(json_data.as_bytes()).await?;
-    file.flush().await?;
-    Ok(())
 }
 
 /**
@@ -286,14 +122,6 @@ pub fn get_puzzles_pool() -> &'static PgPool {
 }
 
 pub async fn get_puzzle(puzzle_id: &str) -> Option<Puzzle> {
-    #[cfg(feature = "local-files")]
-    if use_local_files() {
-        return read_local_puzzle_record(format!("../puzzles/{}.json", puzzle_id))
-            .await
-            .ok()
-            .map(Puzzle::from);
-    }
-
     let Ok(puzzle_row) = sqlx::query_as::<_, PuzzleRow>(
         "SELECT name, description, width, height, letters, words, answer FROM puzzles WHERE id = $1",
     )
@@ -311,42 +139,6 @@ pub async fn list_puzzle_records(
     limit: usize,
     filters: PuzzleRecordFilters,
 ) -> Result<Vec<PuzzleSummaryRecord>, Box<dyn Error>> {
-    #[cfg(feature = "local-files")]
-    if use_local_files() {
-        let mut records = Vec::new();
-        let mut entries = fs::read_dir("../puzzles").await?;
-
-        while let Some(entry) = entries.next_entry().await? {
-            let path = entry.path();
-            if path.extension().and_then(|ext| ext.to_str()) != Some("json") {
-                continue;
-            }
-
-            let local_record = read_local_puzzle_record(&path).await?;
-            let Some(id) = path.file_stem().and_then(|name| name.to_str()) else {
-                continue;
-            };
-
-            records.push(PuzzleSummaryRecord {
-                id: id.to_string(),
-                name: local_record.name,
-                description: local_record.description,
-                width: local_record.width,
-                height: local_record.height,
-                letters: local_record.letters,
-                plays: local_record.plays,
-                completions: local_record.completions,
-                likes: local_record.likes,
-                created_at: local_record.created_at,
-            });
-        }
-
-        records.retain(|record| matches_filters(record, &filters));
-        records.sort_by(|a, b| a.name.cmp(&b.name));
-        records.truncate(limit);
-        return Ok(records);
-    }
-
     let mut query = QueryBuilder::<Postgres>::new(
         "SELECT p.id, p.name, p.description, p.width, p.height, p.letters, COALESCE(ps.plays, 0) AS plays, COALESCE(ps.completions, 0) AS completions, COALESCE(ps.likes, 0) AS likes, p.created_at::text AS created_at FROM puzzles p LEFT JOIN puzzle_stats ps ON ps.puzzle_id = p.id",
     );
@@ -412,18 +204,6 @@ pub async fn list_puzzle_records(
 }
 
 pub async fn insert_puzzle_into_db(puzzle: Puzzle) -> Result<String, Box<dyn Error>> {
-    #[cfg(feature = "local-files")]
-    if use_local_files() {
-        let record = LocalPuzzleRecord::from(puzzle);
-        let id = record.name.clone();
-        let json_data = serde_json::to_string(&record)?;
-        let mut file = File::create(format!("../puzzles/{}.json", id)).await?;
-        file.write_all(json_data.as_bytes()).await?;
-        file.flush().await?;
-
-        return Ok(id);
-    }
-
     let words: Vec<String> = puzzle.words.iter().cloned().collect();
     let mut transaction = get_puzzles_pool().begin().await?;
 
@@ -454,24 +234,6 @@ pub async fn increment_puzzle_stat(
     puzzle_id: &str,
     stat: PuzzleStat,
 ) -> Result<(), Box<dyn Error>> {
-    #[cfg(feature = "local-files")]
-    if use_local_files() {
-        let path = format!("../puzzles/{}.json", puzzle_id);
-        let mut record = read_local_puzzle_record(&path).await?;
-
-        match stat {
-            PuzzleStat::Plays => record.plays += 1,
-            PuzzleStat::Completions {
-                completion_time_seconds,
-            } => {
-                record.completions += 1;
-                record.completion_times.push(completion_time_seconds);
-            }
-        }
-
-        return write_local_puzzle_record(path, &record).await;
-    }
-
     let puzzle_id = Uuid::parse_str(puzzle_id)?;
 
     let result = match stat {
