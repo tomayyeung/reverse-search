@@ -43,6 +43,9 @@ struct PuzzleSummaryRow {
     pub completions: i64,
     pub likes: i64,
     pub created_at: String,
+    pub creator_username: String,
+    pub creator_display_name: Option<String>,
+    pub creator_role: String,
 }
 
 /// A summary of a puzzle, used when listing puzzles
@@ -58,6 +61,9 @@ pub struct PuzzleSummaryRecord {
     pub completions: u64,
     pub likes: u64,
     pub created_at: String,
+    pub creator_username: String,
+    pub creator_display_name: Option<String>,
+    pub creator_role: String,
 }
 
 impl From<PuzzleSummaryRow> for PuzzleSummaryRecord {
@@ -73,8 +79,24 @@ impl From<PuzzleSummaryRow> for PuzzleSummaryRecord {
             completions: row.completions as u64,
             likes: row.likes as u64,
             created_at: row.created_at,
+            creator_username: row.creator_username,
+            creator_display_name: row.creator_display_name,
+            creator_role: row.creator_role,
         }
     }
+}
+
+#[derive(Clone)]
+pub struct AppUser {
+    pub id: Uuid,
+}
+
+pub struct ClerkUserData {
+    pub clerk_user_id: String,
+    pub username: Option<String>,
+    pub display_name: Option<String>,
+    pub avatar_url: Option<String>,
+    pub email: Option<String>,
 }
 
 impl From<PuzzleRow> for Puzzle {
@@ -121,6 +143,45 @@ pub fn get_puzzles_pool() -> &'static PgPool {
         .get_or_init(|| PgPool::connect_lazy(&std::env::var("DATABASE_URL").unwrap()).unwrap())
 }
 
+fn fallback_username(clerk_user_id: &str) -> String {
+    let suffix: String = clerk_user_id
+        .chars()
+        .filter(|ch| ch.is_ascii_alphanumeric())
+        .take(12)
+        .collect();
+
+    if suffix.is_empty() {
+        String::from("user")
+    } else {
+        format!("user_{}", suffix)
+    }
+}
+
+pub async fn ensure_app_user(user: ClerkUserData) -> Result<AppUser, Box<dyn Error>> {
+    let has_clerk_username = user
+        .username
+        .as_deref()
+        .is_some_and(|username| !username.trim().is_empty());
+    let username = user
+        .username
+        .filter(|username| !username.trim().is_empty())
+        .unwrap_or_else(|| fallback_username(&user.clerk_user_id));
+
+    let id: Uuid = sqlx::query_scalar(
+        "INSERT INTO users (clerk_user_id, username, display_name, avatar_url, email) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (clerk_user_id) DO UPDATE SET username = CASE WHEN $6 AND (users.username = 'user' OR users.username LIKE 'user_%') THEN EXCLUDED.username ELSE users.username END, display_name = EXCLUDED.display_name, avatar_url = EXCLUDED.avatar_url, email = EXCLUDED.email, updated_at = now() RETURNING id",
+    )
+    .bind(user.clerk_user_id)
+    .bind(username)
+    .bind(user.display_name)
+    .bind(user.avatar_url)
+    .bind(user.email)
+    .bind(has_clerk_username)
+    .fetch_one(get_puzzles_pool())
+    .await?;
+
+    Ok(AppUser { id })
+}
+
 pub async fn get_puzzle(puzzle_id: &str) -> Option<Puzzle> {
     let Ok(puzzle_row) = sqlx::query_as::<_, PuzzleRow>(
         "SELECT name, description, width, height, letters, words, answer FROM puzzles WHERE id = $1",
@@ -140,7 +201,7 @@ pub async fn list_puzzle_records(
     filters: PuzzleRecordFilters,
 ) -> Result<Vec<PuzzleSummaryRecord>, Box<dyn Error>> {
     let mut query = QueryBuilder::<Postgres>::new(
-        "SELECT p.id, p.name, p.description, p.width, p.height, p.letters, COALESCE(ps.plays, 0) AS plays, COALESCE(ps.completions, 0) AS completions, COALESCE(ps.likes, 0) AS likes, p.created_at::text AS created_at FROM puzzles p LEFT JOIN puzzle_stats ps ON ps.puzzle_id = p.id",
+        "SELECT p.id, p.name, p.description, p.width, p.height, p.letters, COALESCE(ps.plays, 0) AS plays, COALESCE(ps.completions, 0) AS completions, COALESCE(ps.likes, 0) AS likes, p.created_at::text AS created_at, u.username AS creator_username, u.display_name AS creator_display_name, u.role AS creator_role FROM puzzles p LEFT JOIN puzzle_stats ps ON ps.puzzle_id = p.id JOIN users u ON u.id = p.created_by_user_id",
     );
     let mut has_where = false;
 
@@ -203,12 +264,15 @@ pub async fn list_puzzle_records(
     Ok(rows.into_iter().map(PuzzleSummaryRecord::from).collect())
 }
 
-pub async fn insert_puzzle_into_db(puzzle: Puzzle) -> Result<String, Box<dyn Error>> {
+pub async fn insert_puzzle_into_db(
+    puzzle: Puzzle,
+    creator: &AppUser,
+) -> Result<String, Box<dyn Error>> {
     let words: Vec<String> = puzzle.words.iter().cloned().collect();
     let mut transaction = get_puzzles_pool().begin().await?;
 
     let uuid: Uuid = sqlx::query_scalar(
-        "INSERT INTO puzzles (name, description, width, height, letters, words, answer) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id",
+        "INSERT INTO puzzles (name, description, width, height, letters, words, answer, created_by_user_id) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
     )
     .bind(puzzle.name)
     .bind(puzzle.description)
@@ -217,6 +281,7 @@ pub async fn insert_puzzle_into_db(puzzle: Puzzle) -> Result<String, Box<dyn Err
     .bind(puzzle.letters)
     .bind(&words as &[String])
     .bind(puzzle.answer)
+    .bind(creator.id)
     .fetch_one(&mut *transaction)
     .await?;
 
@@ -233,6 +298,7 @@ pub async fn insert_puzzle_into_db(puzzle: Puzzle) -> Result<String, Box<dyn Err
 pub async fn increment_puzzle_stat(
     puzzle_id: &str,
     stat: PuzzleStat,
+    user: Option<&AppUser>,
 ) -> Result<(), Box<dyn Error>> {
     let puzzle_id = Uuid::parse_str(puzzle_id)?;
 
@@ -256,9 +322,10 @@ pub async fn increment_puzzle_stat(
 
             if result.rows_affected() > 0 {
                 sqlx::query(
-                    "INSERT INTO puzzle_completion_events (puzzle_id, completion_time_seconds) VALUES ($1, $2)",
+                    "INSERT INTO puzzle_completion_events (puzzle_id, user_id, completion_time_seconds) VALUES ($1, $2, $3)",
                 )
                 .bind(puzzle_id)
+                .bind(user.map(|user| user.id))
                 .bind(completion_time_seconds as i32)
                 .execute(&mut *transaction)
                 .await?;

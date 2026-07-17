@@ -2,7 +2,7 @@
 - update screenshots (as app changes, remove dev stuff, etc)
 - ui/ux
 - [ ] users w/ auth
-  - [ ] only registered users can create
+  - [x] only registered users can create
   - [ ] keeps track of completed puzzles
   - [ ] creating a puzzle records the user who made it
 - [ ] auth to backend - not everyone should be able to access backend, especially /api/create

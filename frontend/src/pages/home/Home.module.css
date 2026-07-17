@@ -101,6 +101,13 @@
   margin: 0.35rem 0 0;
 }
 
+.creator {
+  margin: 0.25rem 0 0;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
 .stats {
   display: flex;
   flex-wrap: wrap;

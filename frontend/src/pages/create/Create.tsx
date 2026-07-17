@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@clerk/react";
 
 import { Board, BLANK } from "@/components/Board";
 import { WordList, wordsAsStringArr } from "@components/WordList";
@@ -23,6 +24,7 @@ type PendingSubmission = {
 };
 
 export default function CreatePage() {
+  const { getToken } = useAuth();
   const [width, setWidth] = useState(3);
   const [height, setHeight] = useState(3);
 
@@ -90,10 +92,17 @@ export default function CreatePage() {
     setPuzzleId(undefined);
 
     try {
+      const token = await getToken();
+
+      if (token === null) {
+        throw new Error("Log in before creating a puzzle");
+      }
+
       const response = await fetch(`${API_URL}/api/create`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           name: submission.name,

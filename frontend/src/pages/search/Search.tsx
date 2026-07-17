@@ -16,6 +16,11 @@ type PuzzleSummary = {
   givenPercent: number;
   plays: number;
   completions: number;
+  creator: {
+    username: string;
+    displayName: string | null;
+    official: boolean;
+  };
   description: string | null;
 };
 
@@ -25,6 +30,14 @@ function addNumberParam(params: URLSearchParams, name: string, value: string) {
   if (value.trim() !== "") {
     params.set(name, value);
   }
+}
+
+function creatorLabel(creator: PuzzleSummary["creator"]) {
+  if (creator.official) {
+    return "Official";
+  }
+
+  return creator.username ?? creator.displayName;
 }
 
 export default function SearchPage() {
@@ -230,6 +243,7 @@ export default function SearchPage() {
                 <p className={styles.description}>
                   {puzzle.description ?? "No description provided."}
                 </p>
+                <p className={styles.creator}>By {creatorLabel(puzzle.creator)}</p>
               </div>
               <div className={styles.stats}>
                 <span>

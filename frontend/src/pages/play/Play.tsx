@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useAuth } from "@clerk/react";
 
 import { Board, BLANK, HOLE } from "@/components/Board";
 import { Menu } from "@/components/Menu";
@@ -45,20 +46,28 @@ async function incrementPuzzleStat(
   puzzleId: string | undefined,
   event: "play" | "completion",
   completionTimeSeconds?: number,
+  token?: string | null,
 ) {
   if (puzzleId === undefined) {
     return;
   }
 
+  const headers: HeadersInit = { "Content-Type": "application/json" };
+
+  if (token !== null && token !== undefined) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
   await fetch(`${API_URL}/api/stats`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify({ puzzleId, event, completionTimeSeconds }),
   });
 }
 
 export default function PlayPage() {
   const { puzzleId } = useParams();
+  const { getToken } = useAuth();
 
   const [puzzleFetched, setPuzzleFetched] = useState<boolean | undefined>(
     undefined,
@@ -200,7 +209,9 @@ export default function PlayPage() {
     }
 
     playCountedRef.current = true;
-    void incrementPuzzleStat(puzzleId, "play");
+    void getToken().then((token) =>
+      incrementPuzzleStat(puzzleId, "play", undefined, token),
+    );
   }
 
   useEffect(() => {
@@ -219,8 +230,10 @@ export default function PlayPage() {
 
     setElapsedSeconds(completionTimeSeconds);
     completionCountedRef.current = true;
-    void incrementPuzzleStat(puzzleId, "completion", completionTimeSeconds);
-  }, [complete, gaveUp, puzzleId]);
+    void getToken().then((token) =>
+      incrementPuzzleStat(puzzleId, "completion", completionTimeSeconds, token),
+    );
+  }, [complete, gaveUp, getToken, puzzleId]);
 
   function revealTile(idx: number) {
     const answerTile = answer[idx];

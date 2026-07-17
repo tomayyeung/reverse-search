@@ -76,6 +76,21 @@
     background 160ms ease;
 }
 
+.authButton {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.48rem 0.9rem;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 900;
+}
+
+.authButton:hover {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
 .primaryLink:hover,
 .primaryActive {
   border-color: var(--accent-strong);

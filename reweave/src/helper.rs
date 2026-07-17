@@ -57,7 +57,7 @@ pub fn cors_response(
         .status(status)
         .header("Access-Control-Allow-Origin", origin)
         .header("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
-        .header("Access-Control-Allow-Headers", "Content-Type")
+        .header("Access-Control-Allow-Headers", "Content-Type,Authorization")
         .header("Vary", "Origin")
         .body(body.into())?)
 }
@@ -67,6 +67,17 @@ pub fn forbidden_origin_response() -> Result<Response<ResponseBody>, Error> {
         .status(403)
         .header("Content-Type", "application/json")
         .body(ResponseBody::from(json!({ "error": "Forbidden origin" })))?)
+}
+
+pub fn unauthorized_response(message: &str, origin: &str) -> Result<Response<ResponseBody>, Error> {
+    Ok(Response::builder()
+        .status(401)
+        .header("Content-Type", "application/json")
+        .header("Access-Control-Allow-Origin", origin)
+        .header("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
+        .header("Access-Control-Allow-Headers", "Content-Type,Authorization")
+        .header("Vary", "Origin")
+        .body(ResponseBody::from(json!({ "error": message })))?)
 }
 
 /// Create a JSON response to most HTTP requests
@@ -85,7 +96,7 @@ pub fn json_response<T: Serialize>(
         .header("Content-Type", "application/json")
         .header("Access-Control-Allow-Origin", origin)
         .header("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
-        .header("Access-Control-Allow-Headers", "Content-Type")
+        .header("Access-Control-Allow-Headers", "Content-Type,Authorization")
         .header("Vary", "Origin")
         .body(ResponseBody::from(value))?)
 }
@@ -117,7 +128,7 @@ pub struct CreateOutput {
     id: String,
 }
 
-pub async fn create(inp: CreateInput) -> Result<CreateOutput, ErrorResponse> {
+pub async fn create(inp: CreateInput, creator: &AppUser) -> Result<CreateOutput, ErrorResponse> {
     let description = inp
         .description
         .map(|description| description.trim().to_string());
@@ -148,7 +159,7 @@ pub async fn create(inp: CreateInput) -> Result<CreateOutput, ErrorResponse> {
         }
     };
 
-    let id = insert_puzzle_into_db(puzzle)
+    let id = insert_puzzle_into_db(puzzle, creator)
         .await
         .map_err(|e| ErrorResponse(e.to_string()))?;
 
@@ -185,6 +196,7 @@ pub struct IncrementPuzzleStatOutput {
 
 pub async fn increment_stat(
     inp: IncrementPuzzleStatInput,
+    user: Option<&AppUser>,
 ) -> Result<IncrementPuzzleStatOutput, ErrorResponse> {
     let stat = match inp.event.as_str() {
         "play" => PuzzleStat::Plays,
@@ -196,7 +208,7 @@ pub async fn increment_stat(
         _ => return Err(ErrorResponse(String::from("invalid stat event"))),
     };
 
-    increment_puzzle_stat(&inp.puzzle_id, stat)
+    increment_puzzle_stat(&inp.puzzle_id, stat, user)
         .await
         .map_err(|e| ErrorResponse(e.to_string()))?;
 
@@ -215,7 +227,16 @@ pub struct PuzzleSummary {
     given_percent: u8,
     plays: u64,
     completions: u64,
+    creator: PuzzleCreator,
     description: Option<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PuzzleCreator {
+    username: String,
+    display_name: Option<String>,
+    official: bool,
 }
 
 #[derive(Deserialize)]
@@ -315,6 +336,11 @@ pub async fn list_puzzles(inp: ListPuzzlesInput) -> Result<Vec<PuzzleSummary>, E
                 given_percent,
                 plays: record.plays,
                 completions: record.completions,
+                creator: PuzzleCreator {
+                    username: record.creator_username,
+                    display_name: record.creator_display_name,
+                    official: record.creator_role == "admin",
+                },
                 description: record.description,
             }
         })

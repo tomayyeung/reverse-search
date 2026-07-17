@@ -9,6 +9,7 @@ type PopupProps = {
   confirmText?: string;
   /** used for confirmation */
   cancelText?: string;
+  closeOnConfirm?: boolean;
   onConfirm?: () => void;
   onCancel?: () => void;
 };
@@ -18,6 +19,7 @@ export function Popup({
   closeText = "Close",
   confirmText = "Confirm",
   cancelText = "Cancel",
+  closeOnConfirm = true,
   onConfirm,
   onCancel,
 }: PopupProps) {
@@ -32,7 +34,9 @@ export function Popup({
 
   function confirm() {
     onConfirm?.();
-    close();
+    if (closeOnConfirm) {
+      close();
+    }
   }
 
   function cancel() {

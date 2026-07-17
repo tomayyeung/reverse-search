@@ -1,8 +1,11 @@
 import { Link, NavLink } from "react-router-dom";
+import { SignInButton, UserButton, useAuth } from "@clerk/react";
 
 import styles from "./NavBar.module.css";
 
 export function NavBar() {
+  const { isLoaded, isSignedIn } = useAuth();
+
   return (
     <header className={styles.navbarShell}>
       <div className={styles.navbar}>
@@ -46,6 +49,14 @@ export function NavBar() {
           >
             Create puzzle
           </NavLink>
+          {isLoaded && !isSignedIn ? (
+            <SignInButton mode="modal">
+              <button type="button" className={styles.authButton}>
+                Log in
+              </button>
+            </SignInButton>
+          ) : null}
+          {isLoaded && isSignedIn ? <UserButton /> : null}
         </nav>
       </div>
     </header>
