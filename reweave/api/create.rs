@@ -13,16 +13,19 @@ pub async fn handler(req: Request) -> Result<Response<ResponseBody>, Error> {
     };
 
     match req.method().as_str() {
-        "OPTIONS" => cors_response(204, "", &origin),
+        "OPTIONS" => match origin.as_deref() {
+            Some(origin) => cors_response(204, "", origin),
+            None => forbidden_origin_response(),
+        },
         "POST" => {
             let user = match require_app_user(&req).await {
                 Ok(user) => user,
-                Err(err) => return unauthorized_response(&err.0, &origin),
+                Err(err) => return unauthorized_response(&err.0, origin.as_deref()),
             };
             let params: CreateInput = read_json_body(req).await?;
-            json_response(create(params, &user).await, &origin)
+            json_response(create(params, &user).await, origin.as_deref())
         }
-        _ => json_err_response("Invalid method request", &origin),
+        _ => json_err_response("Invalid method request", origin.as_deref()),
     }
 }
 

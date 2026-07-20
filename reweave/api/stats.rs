@@ -14,16 +14,22 @@ pub async fn handler(req: Request) -> Result<Response<ResponseBody>, Error> {
     };
 
     match req.method().as_str() {
-        "OPTIONS" => cors_response(204, "", &origin),
+        "OPTIONS" => match origin.as_deref() {
+            Some(origin) => cors_response(204, "", origin),
+            None => forbidden_origin_response(),
+        },
         "POST" => {
             let user = match optional_app_user(&req).await {
                 Ok(user) => user,
-                Err(err) => return unauthorized_response(&err.0, &origin),
+                Err(err) => return unauthorized_response(&err.0, origin.as_deref()),
             };
             let params: IncrementPuzzleStatInput = read_json_body(req).await?;
-            json_response(increment_stat(params, user.as_ref()).await, &origin)
+            json_response(
+                increment_stat(params, user.as_ref()).await,
+                origin.as_deref(),
+            )
         }
-        _ => json_err_response("Invalid method request", &origin),
+        _ => json_err_response("Invalid method request", origin.as_deref()),
     }
 }
 

@@ -12,7 +12,10 @@ pub async fn handler(req: Request) -> Result<Response<ResponseBody>, Error> {
     };
 
     match req.method().as_str() {
-        "OPTIONS" => cors_response(204, "", &origin),
+        "OPTIONS" => match origin.as_deref() {
+            Some(origin) => cors_response(204, "", origin),
+            None => forbidden_origin_response(),
+        },
         "GET" => {
             let params = if let Some(query) = req.uri().query() {
                 serde_urlencoded::from_str(query)
@@ -30,9 +33,9 @@ pub async fn handler(req: Request) -> Result<Response<ResponseBody>, Error> {
                 }
             };
 
-            json_response(list_puzzles(params).await, &origin)
+            json_response(list_puzzles(params).await, origin.as_deref())
         }
-        _ => json_err_response("Invalid method request", &origin),
+        _ => json_err_response("Invalid method request", origin.as_deref()),
     }
 }
 

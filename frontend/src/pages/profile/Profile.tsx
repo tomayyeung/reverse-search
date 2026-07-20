@@ -76,6 +76,7 @@ export default function ProfilePage() {
   const [savingDisplayName, setSavingDisplayName] = useState(false);
 
   useEffect(() => {
+    const controller = new AbortController();
     let cancelled = false;
 
     async function fetchProfile() {
@@ -88,7 +89,9 @@ export default function ProfilePage() {
         }
 
         const params = new URLSearchParams({ username: user });
-        const response = await fetch(`${API_URL}/api/profile?${params}`);
+        const response = await fetch(`${API_URL}/api/profile?${params}`, {
+          signal: controller.signal,
+        });
         const data = await response.json();
 
         if (!response.ok) {
@@ -99,6 +102,10 @@ export default function ProfilePage() {
           setProfile(data as ProfileResponse);
         }
       } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
         if (!cancelled) {
           setProfile(undefined);
           setLoadError(
@@ -116,10 +123,12 @@ export default function ProfilePage() {
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [user]);
 
   useEffect(() => {
+    const controller = new AbortController();
     let cancelled = false;
 
     async function fetchCurrentUser() {
@@ -130,13 +139,18 @@ export default function ProfilePage() {
 
       try {
         const token = await getToken();
+        if (cancelled) return;
+
         const headers: HeadersInit = {};
 
         if (token !== null) {
           headers.Authorization = `Bearer ${token}`;
         }
 
-        const response = await fetch(`${API_URL}/api/me`, { headers });
+        const response = await fetch(`${API_URL}/api/me`, {
+          headers,
+          signal: controller.signal,
+        });
         const data = (await response.json()) as MeResponse;
 
         if (!response.ok) {
@@ -146,7 +160,11 @@ export default function ProfilePage() {
         if (!cancelled) {
           setCurrentUsername(data.username);
         }
-      } catch {
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
         if (!cancelled) {
           setCurrentUsername(undefined);
         }
@@ -157,6 +175,7 @@ export default function ProfilePage() {
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [getToken, isLoaded, isSignedIn]);
 

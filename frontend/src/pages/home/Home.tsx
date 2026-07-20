@@ -13,6 +13,7 @@ export default function HomePage() {
   const [loadError, setLoadError] = useState<string | undefined>();
 
   useEffect(() => {
+    const controller = new AbortController();
     let cancelled = false;
 
     async function fetchPuzzles() {
@@ -20,7 +21,9 @@ export default function HomePage() {
       setLoadError(undefined);
 
       try {
-        const response = await fetch(`${API_URL}/api/puzzles?limit=24`);
+        const response = await fetch(`${API_URL}/api/puzzles?limit=24`, {
+          signal: controller.signal,
+        });
         const data = await response.json();
 
         if (!response.ok) {
@@ -31,6 +34,10 @@ export default function HomePage() {
           setPuzzles(data as PuzzleSummary[]);
         }
       } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
         if (!cancelled) {
           setLoadError(
             error instanceof Error ? error.message : "Failed to load puzzles",
@@ -47,6 +54,7 @@ export default function HomePage() {
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, []);
 

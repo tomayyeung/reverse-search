@@ -36,13 +36,13 @@ fn is_allowed_origin(origin: &str) -> bool {
         .unwrap_or(false)
 }
 
-pub fn require_allowed_origin(req: &Request) -> Result<String, ErrorResponse> {
+pub fn require_allowed_origin(req: &Request) -> Result<Option<String>, ErrorResponse> {
     let Some(origin) = allowed_origin_from_request(req) else {
-        return Err(ErrorResponse(String::from("Forbidden origin")));
+        return Ok(None);
     };
 
     if is_allowed_origin(origin) {
-        Ok(origin.to_string())
+        Ok(Some(origin.to_string()))
     } else {
         Err(ErrorResponse(String::from("Forbidden origin")))
     }
@@ -70,21 +70,29 @@ pub fn forbidden_origin_response() -> Result<Response<ResponseBody>, Error> {
         .body(ResponseBody::from(json!({ "error": "Forbidden origin" })))?)
 }
 
-pub fn unauthorized_response(message: &str, origin: &str) -> Result<Response<ResponseBody>, Error> {
-    Ok(Response::builder()
+pub fn unauthorized_response(
+    message: &str,
+    origin: Option<&str>,
+) -> Result<Response<ResponseBody>, Error> {
+    let mut response = Response::builder()
         .status(401)
-        .header("Content-Type", "application/json")
-        .header("Access-Control-Allow-Origin", origin)
-        .header("Access-Control-Allow-Methods", "GET,POST,PATCH,OPTIONS")
-        .header("Access-Control-Allow-Headers", "Content-Type,Authorization")
-        .header("Vary", "Origin")
-        .body(ResponseBody::from(json!({ "error": message })))?)
+        .header("Content-Type", "application/json");
+
+    if let Some(origin) = origin {
+        response = response
+            .header("Access-Control-Allow-Origin", origin)
+            .header("Access-Control-Allow-Methods", "GET,POST,PATCH,OPTIONS")
+            .header("Access-Control-Allow-Headers", "Content-Type,Authorization")
+            .header("Vary", "Origin");
+    }
+
+    Ok(response.body(ResponseBody::from(json!({ "error": message })))?)
 }
 
 /// Create a JSON response to most HTTP requests
 pub fn json_response<T: Serialize>(
     out: Result<T, ErrorResponse>,
-    origin: &str,
+    origin: Option<&str>,
 ) -> Result<Response<ResponseBody>, Error> {
     // Status and value depend on Ok or Err
     let (status, value) = match out {
@@ -92,18 +100,23 @@ pub fn json_response<T: Serialize>(
         Err(e) => (400, json!( {"error": e.0} )),
     };
 
-    Ok(Response::builder()
+    let mut response = Response::builder()
         .status(status)
-        .header("Content-Type", "application/json")
-        .header("Access-Control-Allow-Origin", origin)
-        .header("Access-Control-Allow-Methods", "GET,POST,PATCH,OPTIONS")
-        .header("Access-Control-Allow-Headers", "Content-Type,Authorization")
-        .header("Vary", "Origin")
-        .body(ResponseBody::from(value))?)
+        .header("Content-Type", "application/json");
+
+    if let Some(origin) = origin {
+        response = response
+            .header("Access-Control-Allow-Origin", origin)
+            .header("Access-Control-Allow-Methods", "GET,POST,PATCH,OPTIONS")
+            .header("Access-Control-Allow-Headers", "Content-Type,Authorization")
+            .header("Vary", "Origin");
+    }
+
+    Ok(response.body(ResponseBody::from(value))?)
 }
 
 /// Create a JSON response with an error message
-pub fn json_err_response(err: &str, origin: &str) -> Result<Response<ResponseBody>, Error> {
+pub fn json_err_response(err: &str, origin: Option<&str>) -> Result<Response<ResponseBody>, Error> {
     json_response::<Value>(Err(ErrorResponse(String::from(err))), origin)
 }
 

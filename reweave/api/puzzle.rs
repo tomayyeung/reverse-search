@@ -12,7 +12,10 @@ pub async fn handler(req: Request) -> Result<Response<ResponseBody>, Error> {
     };
 
     match req.method().as_str() {
-        "OPTIONS" => cors_response(204, "", &origin),
+        "OPTIONS" => match origin.as_deref() {
+            Some(origin) => cors_response(204, "", origin),
+            None => forbidden_origin_response(),
+        },
         "GET" => {
             let params = if let Some(query) = req.uri().query() {
                 // read params from query
@@ -29,9 +32,9 @@ pub async fn handler(req: Request) -> Result<Response<ResponseBody>, Error> {
                     .to_string();
                 LoadInput { puzzle_id }
             };
-            json_response(load_puzzle(params).await, &origin)
+            json_response(load_puzzle(params).await, origin.as_deref())
         }
-        _ => json_err_response("Invalid method request", &origin),
+        _ => json_err_response("Invalid method request", origin.as_deref()),
     }
 }
 

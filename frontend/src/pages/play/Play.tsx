@@ -109,6 +109,7 @@ export default function PlayPage() {
 
   useEffect(() => {
     const route = `${API_URL}/api/puzzle/${puzzleId}`;
+    const controller = new AbortController();
     let cancelled = false;
 
     async function fetchPuzzle() {
@@ -116,7 +117,7 @@ export default function PlayPage() {
       setLoadError(undefined);
 
       try {
-        const response = await fetch(route);
+        const response = await fetch(route, { signal: controller.signal });
         const puzzle = (await response.json()) as PuzzleResponse;
 
         if (!response.ok) {
@@ -170,6 +171,10 @@ export default function PlayPage() {
           throw new Error(puzzle.error ?? "Failed to load puzzle");
         }
       } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+
         if (cancelled) return;
 
         setLoadError(
@@ -183,6 +188,7 @@ export default function PlayPage() {
 
     return () => {
       cancelled = true;
+      controller.abort();
     };
   }, [puzzleId]);
 

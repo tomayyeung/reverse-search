@@ -1,6 +1,5 @@
 {
   "rewrites": [
-    { "source": "/api/puzzle/:puzzle_id", "destination": "/api/puzzle?puzzle_id=:puzzle_id" },
-    { "source": "/api/(.*)", "destination": "/api/api" }
+    { "source": "/api/puzzle/:puzzle_id", "destination": "/api/puzzle?puzzle_id=:puzzle_id" }
   ]
 }
