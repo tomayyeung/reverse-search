@@ -1,0 +1,130 @@
+.profile {
+  gap: 1.25rem;
+  padding-top: clamp(24px, 4vw, 48px);
+  padding-bottom: clamp(32px, 5vw, 64px);
+}
+
+.header {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1.1rem;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.avatar,
+.avatarFallback {
+  width: 4.5rem;
+  height: 4.5rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+
+.avatar {
+  object-fit: cover;
+}
+
+.avatarFallback {
+  display: grid;
+  place-items: center;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 2rem;
+  font-weight: 900;
+}
+
+.nameLine {
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.nameLine h2,
+.sectionHeader h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: clamp(1.55rem, 3vw, 2.2rem);
+  letter-spacing: -0.05em;
+}
+
+.nameLine span,
+.sectionHeader span,
+.completionMeta span {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.25rem 0.55rem;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 0.82rem;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.header p {
+  margin: 0.25rem 0 0;
+  color: var(--text-muted);
+  font-weight: 650;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sectionHeader {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.status {
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  background: var(--surface);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.completionMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.completionItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.completionMeta {
+  justify-content: flex-start;
+  padding-left: 0.35rem;
+}
+
+@media (max-width: 720px) {
+  .profile {
+    padding-top: 18px;
+  }
+
+  .header,
+  .sectionHeader {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+}

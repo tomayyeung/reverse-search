@@ -56,6 +56,7 @@ CREATE TABLE "puzzle_completion_events" (
 	"puzzle_id" uuid NOT NULL,
 	"user_id" uuid,
 	"completion_time_seconds" integer NOT NULL,
+	"used_hint" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 

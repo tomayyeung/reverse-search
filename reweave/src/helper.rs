@@ -128,6 +128,18 @@ pub struct CreateOutput {
     id: String,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MeOutput {
+    username: String,
+}
+
+pub fn current_user(user: &AppUser) -> Result<MeOutput, ErrorResponse> {
+    Ok(MeOutput {
+        username: user.username.clone(),
+    })
+}
+
 pub async fn create(inp: CreateInput, creator: &AppUser) -> Result<CreateOutput, ErrorResponse> {
     let description = inp
         .description
@@ -187,6 +199,7 @@ pub struct IncrementPuzzleStatInput {
     puzzle_id: String,
     event: String,
     completion_time_seconds: Option<u32>,
+    used_hint: Option<bool>,
 }
 
 #[derive(Serialize)]
@@ -204,6 +217,7 @@ pub async fn increment_stat(
             completion_time_seconds: inp
                 .completion_time_seconds
                 .ok_or_else(|| ErrorResponse(String::from("missing completion time")))?,
+            used_hint: inp.used_hint.unwrap_or(false),
         },
         _ => return Err(ErrorResponse(String::from("invalid stat event"))),
     };
@@ -239,6 +253,38 @@ pub struct PuzzleCreator {
     official: bool,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProfileUser {
+    username: String,
+    display_name: Option<String>,
+    avatar_url: Option<String>,
+    official: bool,
+    created_at: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompletedPuzzleSummary {
+    puzzle: PuzzleSummary,
+    completion_time_seconds: u32,
+    used_hint: bool,
+    completed_at: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProfileOutput {
+    user: ProfileUser,
+    created_puzzles: Vec<PuzzleSummary>,
+    completed_puzzles: Vec<CompletedPuzzleSummary>,
+}
+
+#[derive(Deserialize)]
+pub struct ProfileInput {
+    pub username: String,
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ListPuzzlesInput {
@@ -250,6 +296,38 @@ pub struct ListPuzzlesInput {
     pub max_height: Option<usize>,
     pub min_given_percent: Option<u8>,
     pub max_given_percent: Option<u8>,
+}
+
+fn puzzle_summary_from_record(record: PuzzleSummaryRecord) -> PuzzleSummary {
+    let total_cells = record.width * record.height;
+    let starting_letters = record
+        .letters
+        .chars()
+        .filter(|letter| *letter != '_' && *letter != '!')
+        .count();
+    let given_percent = if total_cells == 0 {
+        0
+    } else {
+        ((starting_letters * 100 + total_cells / 2) / total_cells) as u8
+    };
+
+    PuzzleSummary {
+        id: record.id,
+        name: record.name,
+        width: record.width,
+        height: record.height,
+        starting_letters,
+        total_cells,
+        given_percent,
+        plays: record.plays,
+        completions: record.completions,
+        creator: PuzzleCreator {
+            username: record.creator_username,
+            display_name: record.creator_display_name,
+            official: record.creator_role == "admin",
+        },
+        description: record.description,
+    }
 }
 
 fn normalized_dimension_filter(
@@ -313,36 +391,48 @@ pub async fn list_puzzles(inp: ListPuzzlesInput) -> Result<Vec<PuzzleSummary>, E
 
     Ok(records
         .into_iter()
-        .map(|record| {
-            let total_cells = record.width * record.height;
-            let starting_letters = record
-                .letters
-                .chars()
-                .filter(|letter| *letter != '_' && *letter != '!')
-                .count();
-            let given_percent = if total_cells == 0 {
-                0
-            } else {
-                ((starting_letters * 100 + total_cells / 2) / total_cells) as u8
-            };
-
-            PuzzleSummary {
-                id: record.id,
-                name: record.name,
-                width: record.width,
-                height: record.height,
-                starting_letters,
-                total_cells,
-                given_percent,
-                plays: record.plays,
-                completions: record.completions,
-                creator: PuzzleCreator {
-                    username: record.creator_username,
-                    display_name: record.creator_display_name,
-                    official: record.creator_role == "admin",
-                },
-                description: record.description,
-            }
-        })
+        .map(puzzle_summary_from_record)
         .collect())
+}
+
+pub async fn load_profile(inp: ProfileInput) -> Result<ProfileOutput, ErrorResponse> {
+    let username = inp.username.trim();
+
+    if username.is_empty() {
+        return Err(ErrorResponse(String::from("missing username")));
+    }
+
+    let user = get_user_profile_record(username)
+        .await
+        .map_err(|e| ErrorResponse(e.to_string()))?
+        .ok_or_else(|| ErrorResponse(format!("invalid username: {}", username)))?;
+    let created_puzzles = list_created_puzzle_records(username)
+        .await
+        .map_err(|e| ErrorResponse(e.to_string()))?
+        .into_iter()
+        .map(puzzle_summary_from_record)
+        .collect();
+    let completed_puzzles = list_completed_puzzle_records(username)
+        .await
+        .map_err(|e| ErrorResponse(e.to_string()))?
+        .into_iter()
+        .map(|record| CompletedPuzzleSummary {
+            puzzle: puzzle_summary_from_record(record.puzzle),
+            completion_time_seconds: record.completion_time_seconds,
+            used_hint: record.used_hint,
+            completed_at: record.completed_at,
+        })
+        .collect();
+
+    Ok(ProfileOutput {
+        user: ProfileUser {
+            username: user.username,
+            display_name: user.display_name,
+            avatar_url: user.avatar_url,
+            official: user.role == "admin",
+            created_at: user.created_at,
+        },
+        created_puzzles,
+        completed_puzzles,
+    })
 }

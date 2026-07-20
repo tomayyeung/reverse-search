@@ -11,7 +11,10 @@ pub static PUZZLES_POOL: OnceLock<PgPool> = OnceLock::new();
 #[derive(Clone, Copy)]
 pub enum PuzzleStat {
     Plays,
-    Completions { completion_time_seconds: u32 },
+    Completions {
+        completion_time_seconds: u32,
+        used_hint: bool,
+    },
 }
 
 /**
@@ -48,6 +51,35 @@ struct PuzzleSummaryRow {
     pub creator_role: String,
 }
 
+#[derive(sqlx::FromRow)]
+pub struct UserProfileRecord {
+    pub username: String,
+    pub display_name: Option<String>,
+    pub avatar_url: Option<String>,
+    pub role: String,
+    pub created_at: String,
+}
+
+#[derive(sqlx::FromRow)]
+struct CompletedPuzzleRow {
+    pub id: Uuid,
+    pub name: String,
+    pub description: Option<String>,
+    pub width: i32,
+    pub height: i32,
+    pub letters: String,
+    pub plays: i64,
+    pub completions: i64,
+    pub likes: i64,
+    pub created_at: String,
+    pub creator_username: String,
+    pub creator_display_name: Option<String>,
+    pub creator_role: String,
+    pub completion_time_seconds: i32,
+    pub used_hint: bool,
+    pub completed_at: String,
+}
+
 /// A summary of a puzzle, used when listing puzzles
 #[derive(Deserialize)]
 pub struct PuzzleSummaryRecord {
@@ -64,6 +96,13 @@ pub struct PuzzleSummaryRecord {
     pub creator_username: String,
     pub creator_display_name: Option<String>,
     pub creator_role: String,
+}
+
+pub struct CompletedPuzzleRecord {
+    pub puzzle: PuzzleSummaryRecord,
+    pub completion_time_seconds: u32,
+    pub used_hint: bool,
+    pub completed_at: String,
 }
 
 impl From<PuzzleSummaryRow> for PuzzleSummaryRecord {
@@ -86,9 +125,35 @@ impl From<PuzzleSummaryRow> for PuzzleSummaryRecord {
     }
 }
 
+impl From<CompletedPuzzleRow> for CompletedPuzzleRecord {
+    fn from(row: CompletedPuzzleRow) -> Self {
+        CompletedPuzzleRecord {
+            puzzle: PuzzleSummaryRecord {
+                id: row.id.to_string(),
+                name: row.name,
+                description: row.description,
+                width: row.width as usize,
+                height: row.height as usize,
+                letters: row.letters,
+                plays: row.plays as u64,
+                completions: row.completions as u64,
+                likes: row.likes as u64,
+                created_at: row.created_at,
+                creator_username: row.creator_username,
+                creator_display_name: row.creator_display_name,
+                creator_role: row.creator_role,
+            },
+            completion_time_seconds: row.completion_time_seconds as u32,
+            used_hint: row.used_hint,
+            completed_at: row.completed_at,
+        }
+    }
+}
+
 #[derive(Clone)]
 pub struct AppUser {
     pub id: Uuid,
+    pub username: String,
 }
 
 pub struct ClerkUserData {
@@ -167,8 +232,8 @@ pub async fn ensure_app_user(user: ClerkUserData) -> Result<AppUser, Box<dyn Err
         .filter(|username| !username.trim().is_empty())
         .unwrap_or_else(|| fallback_username(&user.clerk_user_id));
 
-    let id: Uuid = sqlx::query_scalar(
-        "INSERT INTO users (clerk_user_id, username, display_name, avatar_url, email) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (clerk_user_id) DO UPDATE SET username = CASE WHEN $6 AND (users.username = 'user' OR users.username LIKE 'user_%') THEN EXCLUDED.username ELSE users.username END, display_name = EXCLUDED.display_name, avatar_url = EXCLUDED.avatar_url, email = EXCLUDED.email, updated_at = now() RETURNING id",
+    let (id, username): (Uuid, String) = sqlx::query_as(
+        "INSERT INTO users (clerk_user_id, username, display_name, avatar_url, email) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (clerk_user_id) DO UPDATE SET username = CASE WHEN $6 AND (users.username = 'user' OR users.username LIKE 'user_%') THEN EXCLUDED.username ELSE users.username END, display_name = EXCLUDED.display_name, avatar_url = EXCLUDED.avatar_url, email = EXCLUDED.email, updated_at = now() RETURNING id, username",
     )
     .bind(user.clerk_user_id)
     .bind(username)
@@ -179,7 +244,7 @@ pub async fn ensure_app_user(user: ClerkUserData) -> Result<AppUser, Box<dyn Err
     .fetch_one(get_puzzles_pool())
     .await?;
 
-    Ok(AppUser { id })
+    Ok(AppUser { id, username })
 }
 
 pub async fn get_puzzle(puzzle_id: &str) -> Option<Puzzle> {
@@ -264,6 +329,45 @@ pub async fn list_puzzle_records(
     Ok(rows.into_iter().map(PuzzleSummaryRecord::from).collect())
 }
 
+pub async fn get_user_profile_record(
+    username: &str,
+) -> Result<Option<UserProfileRecord>, Box<dyn Error>> {
+    let profile = sqlx::query_as::<_, UserProfileRecord>(
+        "SELECT username, display_name, avatar_url, role, created_at::text AS created_at FROM users WHERE username = $1",
+    )
+    .bind(username)
+    .fetch_optional(get_puzzles_pool())
+    .await?;
+
+    Ok(profile)
+}
+
+pub async fn list_created_puzzle_records(
+    username: &str,
+) -> Result<Vec<PuzzleSummaryRecord>, Box<dyn Error>> {
+    let rows = sqlx::query_as::<_, PuzzleSummaryRow>(
+        "SELECT p.id, p.name, p.description, p.width, p.height, p.letters, COALESCE(ps.plays, 0) AS plays, COALESCE(ps.completions, 0) AS completions, COALESCE(ps.likes, 0) AS likes, p.created_at::text AS created_at, u.username AS creator_username, u.display_name AS creator_display_name, u.role AS creator_role FROM puzzles p LEFT JOIN puzzle_stats ps ON ps.puzzle_id = p.id JOIN users u ON u.id = p.created_by_user_id WHERE u.username = $1 ORDER BY p.created_at DESC",
+    )
+    .bind(username)
+    .fetch_all(get_puzzles_pool())
+    .await?;
+
+    Ok(rows.into_iter().map(PuzzleSummaryRecord::from).collect())
+}
+
+pub async fn list_completed_puzzle_records(
+    username: &str,
+) -> Result<Vec<CompletedPuzzleRecord>, Box<dyn Error>> {
+    let rows = sqlx::query_as::<_, CompletedPuzzleRow>(
+        "SELECT p.id, p.name, p.description, p.width, p.height, p.letters, COALESCE(ps.plays, 0) AS plays, COALESCE(ps.completions, 0) AS completions, COALESCE(ps.likes, 0) AS likes, p.created_at::text AS created_at, creator.username AS creator_username, creator.display_name AS creator_display_name, creator.role AS creator_role, e.completion_time_seconds, e.used_hint, e.created_at::text AS completed_at FROM puzzle_completion_events e JOIN users profile_user ON profile_user.id = e.user_id JOIN puzzles p ON p.id = e.puzzle_id LEFT JOIN puzzle_stats ps ON ps.puzzle_id = p.id JOIN users creator ON creator.id = p.created_by_user_id WHERE profile_user.username = $1 ORDER BY e.created_at DESC",
+    )
+    .bind(username)
+    .fetch_all(get_puzzles_pool())
+    .await?;
+
+    Ok(rows.into_iter().map(CompletedPuzzleRecord::from).collect())
+}
+
 pub async fn insert_puzzle_into_db(
     puzzle: Puzzle,
     creator: &AppUser,
@@ -311,6 +415,7 @@ pub async fn increment_puzzle_stat(
         }
         PuzzleStat::Completions {
             completion_time_seconds,
+            used_hint,
         } => {
             let mut transaction = get_puzzles_pool().begin().await?;
             let result = sqlx::query(
@@ -322,11 +427,12 @@ pub async fn increment_puzzle_stat(
 
             if result.rows_affected() > 0 {
                 sqlx::query(
-                    "INSERT INTO puzzle_completion_events (puzzle_id, user_id, completion_time_seconds) VALUES ($1, $2, $3)",
+                    "INSERT INTO puzzle_completion_events (puzzle_id, user_id, completion_time_seconds, used_hint) VALUES ($1, $2, $3, $4)",
                 )
                 .bind(puzzle_id)
                 .bind(user.map(|user| user.id))
                 .bind(completion_time_seconds as i32)
+                .bind(used_hint)
                 .execute(&mut *transaction)
                 .await?;
             }

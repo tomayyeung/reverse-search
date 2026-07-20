@@ -46,6 +46,7 @@ async function incrementPuzzleStat(
   puzzleId: string | undefined,
   event: "play" | "completion",
   completionTimeSeconds?: number,
+  usedHint?: boolean,
   token?: string | null,
 ) {
   if (puzzleId === undefined) {
@@ -61,7 +62,7 @@ async function incrementPuzzleStat(
   await fetch(`${API_URL}/api/stats`, {
     method: "POST",
     headers,
-    body: JSON.stringify({ puzzleId, event, completionTimeSeconds }),
+    body: JSON.stringify({ puzzleId, event, completionTimeSeconds, usedHint }),
   });
 }
 
@@ -210,7 +211,7 @@ export default function PlayPage() {
 
     playCountedRef.current = true;
     void getToken().then((token) =>
-      incrementPuzzleStat(puzzleId, "play", undefined, token),
+      incrementPuzzleStat(puzzleId, "play", undefined, undefined, token),
     );
   }
 
@@ -231,9 +232,15 @@ export default function PlayPage() {
     setElapsedSeconds(completionTimeSeconds);
     completionCountedRef.current = true;
     void getToken().then((token) =>
-      incrementPuzzleStat(puzzleId, "completion", completionTimeSeconds, token),
+      incrementPuzzleStat(
+        puzzleId,
+        "completion",
+        completionTimeSeconds,
+        usedHint,
+        token,
+      ),
     );
-  }, [complete, gaveUp, getToken, puzzleId]);
+  }, [complete, gaveUp, getToken, puzzleId, usedHint]);
 
   function revealTile(idx: number) {
     const answerTile = answer[idx];

@@ -9,6 +9,7 @@ const CreatePage = lazy(() => import("./pages/create/Create"));
 const HowToPlayPage = lazy(() => import("./pages/how-to-play/HowToPlay"));
 const PlayPage = lazy(() => import("./pages/play/Play"));
 const SearchPage = lazy(() => import("./pages/search/Search"));
+const ProfilePage = lazy(() => import("./pages/profile/Profile"));
 
 function ProtectedCreateRoute() {
   const navigate = useNavigate();
@@ -44,6 +45,7 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/how-to-play" element={<HowToPlayPage />} />
           <Route path="/search" element={<SearchPage />} />
+          <Route path="/profile/:user" element={<ProfilePage />} />
           <Route path="/create" element={<ProtectedCreateRoute />} />
           <Route path="/play/:puzzleId" element={<PlayPage />} />
         </Routes>
