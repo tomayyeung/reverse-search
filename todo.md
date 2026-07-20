@@ -8,6 +8,7 @@
 - [ ] auth to backend - not everyone should be able to access backend, especially /api/create
 - [ ] modify puzzle
 - [ ] mobile support
+- [ ] big words
 ---
 - [x] puzzle stores answer
   - [x] give up button
