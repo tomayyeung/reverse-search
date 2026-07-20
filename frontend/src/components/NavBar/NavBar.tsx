@@ -122,6 +122,32 @@ export function NavBar() {
                   userButtonPopoverFooter: styles.userButtonFooter,
                 },
               }}
+              userProfileProps={{
+                appearance: {
+                  elements: {
+                    modalBackdrop: styles.clerkModalBackdrop,
+                    modalContent: styles.clerkModalContent,
+                    card: styles.clerkAccountCard,
+                    rootBox: styles.clerkRootBox,
+                    headerTitle: styles.clerkHeaderTitle,
+                    headerSubtitle: styles.clerkHeaderSubtitle,
+                    navbar: styles.clerkAccountNav,
+                    navbarButton: styles.clerkAccountNavButton,
+                    navbarButtonText: styles.clerkAccountNavButtonText,
+                    pageScrollBox: styles.clerkAccountScrollBox,
+                    profileSection: styles.clerkProfileSection,
+                    profileSectionTitle: styles.clerkProfileSectionTitle,
+                    profileSectionContent: styles.clerkProfileSectionContent,
+                    accordionTriggerButton: styles.clerkAccordionButton,
+                    accordionContent: styles.clerkAccordionContent,
+                    formFieldLabel: styles.clerkFormLabel,
+                    formFieldInput: styles.clerkFormInput,
+                    formButtonPrimary: styles.clerkPrimaryButton,
+                    formButtonReset: styles.clerkSecondaryButton,
+                    footer: styles.clerkAccountFooter,
+                  },
+                },
+              }}
             >
               {profileUsername !== undefined ? (
                 <UserButton.MenuItems>

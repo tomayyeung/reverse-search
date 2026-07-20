@@ -192,6 +192,197 @@
   font-family: var(--font-sans);
 }
 
+.clerkModalBackdrop {
+  background: rgb(38 51 47 / 35%);
+  backdrop-filter: blur(5px);
+}
+
+.clerkModalContent {
+  width: min(100% - 24px, 55rem);
+  border-radius: var(--radius-lg);
+  color: var(--text);
+  font-family: var(--font-sans);
+}
+
+.clerkRootBox {
+  color: var(--text);
+  font-family: var(--font-sans);
+}
+
+.clerkAccountCard {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-sans);
+  box-shadow: var(--shadow-soft);
+}
+
+.clerkHeaderTitle {
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: clamp(1.35rem, 3vw, 1.8rem);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+}
+
+.clerkHeaderSubtitle {
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-weight: 650;
+}
+
+.clerkAccountNav {
+  border-right: 1px solid var(--border);
+  background: var(--surface-strong);
+}
+
+.clerkAccountNavButton,
+.clerkAccordionButton {
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-weight: 850;
+}
+
+.clerkAccountNavButton:hover,
+.clerkAccountNavButton:focus,
+.clerkAccordionButton:hover,
+.clerkAccordionButton:focus {
+  background: var(--bg-soft);
+  color: var(--accent-strong);
+}
+
+.clerkAccountNavButtonText {
+  color: inherit;
+  font-family: var(--font-sans);
+  font-weight: 850;
+}
+
+.clerkAccountScrollBox {
+  background: var(--surface);
+}
+
+.clerkProfileSection {
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.clerkProfileSectionTitle {
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.clerkProfileSectionContent,
+.clerkAccordionContent {
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+}
+
+.clerkFormLabel {
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.clerkFormInput {
+  min-height: 2.8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-strong);
+  color: var(--text);
+  font-family: var(--font-sans);
+}
+
+.clerkFormInput:focus {
+  border-color: var(--accent);
+  outline: none;
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.clerkPrimaryButton {
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: var(--accent);
+  color: #ffffff;
+  font-family: var(--font-sans);
+  font-weight: 900;
+}
+
+.clerkPrimaryButton:hover,
+.clerkPrimaryButton:focus {
+  border-color: var(--accent-strong);
+  background: var(--accent-strong);
+  color: #ffffff;
+}
+
+.clerkSecondaryButton {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-strong);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-weight: 900;
+}
+
+.clerkSecondaryButton:hover,
+.clerkSecondaryButton:focus {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
+.clerkAccountFooter {
+  border-top: 1px solid var(--border);
+  background: var(--surface-strong);
+  color: var(--text-muted);
+  font-family: var(--font-sans);
+}
+
+:global(.cl-userProfile-root),
+:global(.cl-userProfile-root *) {
+  font-family: var(--font-sans);
+}
+
+:global(.cl-userProfile-root .cl-card) {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+:global(.cl-userProfile-root .cl-navbar),
+:global(.cl-userProfile-root .cl-footer) {
+  background: var(--surface-strong);
+}
+
+:global(.cl-userProfile-root .cl-navbarButton[data-active="true"]),
+:global(.cl-userProfile-root .cl-navbarButton[aria-current="page"]) {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+:global(.cl-userProfile-root .cl-badge) {
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-weight: 900;
+}
+
+:global(.cl-userProfile-root .cl-dividerLine) {
+  background: var(--border);
+}
+
+:global(.cl-userProfile-root .cl-formFieldInput:focus) {
+  border-color: var(--accent);
+  box-shadow: none;
+}
+
 .primaryLink:hover,
 .primaryActive {
   border-color: var(--accent-strong);
