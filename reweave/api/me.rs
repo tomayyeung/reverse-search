@@ -1,3 +1,6 @@
+//! /api/me syncs a user's account between Clerk (auth provider) and our user database
+//! Requires a Clerk bearer token from the signed-in frontend user. Inserts or updates that Clerk user in the app’s local users table.
+
 use vercel_runtime::{Error, Request, Response, ResponseBody, run, service_fn};
 
 use reweave::auth::require_app_user;
