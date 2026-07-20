@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { SignInButton, UserButton, useAuth } from "@clerk/react";
-import { Menu } from "@/components/Menu";
 import { API_URL } from "@/config";
 
 import styles from "./NavBar.module.css";
@@ -106,18 +105,35 @@ export function NavBar() {
             </SignInButton>
           ) : null}
           {isLoaded && isSignedIn ? (
-            <Menu label="..." ariaLabel="Account menu">
+            <UserButton
+              appearance={{
+                elements: {
+                  userButtonAvatarBox: styles.userButtonAvatar,
+                  userButtonPopoverCard: styles.userButtonPopoverCard,
+                  userButtonPopoverMain: styles.userButtonPopoverMain,
+                  userButtonPopoverActionButton: styles.userButtonAction,
+                  userButtonPopoverActionButtonText: styles.userButtonActionText,
+                  userButtonPopoverActionButtonIcon: styles.userButtonActionIcon,
+                  userButtonPopoverCustomItemButton: styles.userButtonAction,
+                  userButtonPopoverCustomItemButtonText:
+                    styles.userButtonActionText,
+                  userButtonPopoverCustomItemButtonIcon:
+                    styles.userButtonActionIcon,
+                  userButtonPopoverFooter: styles.userButtonFooter,
+                },
+              }}
+            >
               {profileUsername !== undefined ? (
-                <Link
-                  className={styles.menuLink}
-                  to={`/profile/${profileUsername}`}
-                >
-                  Profile
-                </Link>
+                <UserButton.MenuItems>
+                  <UserButton.Link
+                    label="Profile"
+                    labelIcon={<span className={styles.profileIcon}>@</span>}
+                    href={`/profile/${profileUsername}`}
+                  />
+                </UserButton.MenuItems>
               ) : null}
-            </Menu>
+            </UserButton>
           ) : null}
-          {isLoaded && isSignedIn ? <UserButton /> : null}
         </nav>
       </div>
     </header>
