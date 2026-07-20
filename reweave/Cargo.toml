@@ -15,10 +15,13 @@ uuid = "1.23.2"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 http-body-util = "0.1.3"
+hyper = { version = "1", features = ["http1", "server"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+dotenvy = "0.15"
 jsonwebtoken = "9"
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 vercel_runtime = "2"
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1", features = ["macros", "net", "rt-multi-thread"] }
 sqlx = { version = "0.8.6", default-features = false, features = ["derive", "postgres", "runtime-tokio-rustls", "uuid"] }
 
 [lib]
@@ -52,3 +55,7 @@ path = "api/profile.rs"
 [[bin]]
 name = "me"
 path = "api/me.rs"
+
+[[bin]]
+name = "local-backend"
+path = "src/bin/local_backend.rs"

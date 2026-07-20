@@ -29,7 +29,8 @@
 - Type-check/build the current checked-in frontend package with `pnpm --dir frontend run build`; this assumes `frontend/pkg/` already exists.
 - Run frontend dev server: `pnpm --dir frontend run dev`.
 - Lint frontend: `pnpm --dir frontend run lint`.
-- Run backend locally from `reweave/` with `DATABASE_URL=... vc dev` or `DATABASE_URL=... vercel dev`; use a local PostgreSQL database URL for development.
+- Run backend locally from `reweave/` with `cargo run --bin local-backend`; it loads `reweave/.env` and listens on `127.0.0.1:3000` by default. Use `LOCAL_BACKEND_ADDR=127.0.0.1:3001 cargo run --bin local-backend` for another port.
+- Use `DATABASE_URL=... vc dev` or `DATABASE_URL=... vercel dev` from `reweave/` only when testing Vercel's function runtime; the local backend avoids the Vercel Rust dev-server port race.
 - Test shared/backend Rust crate: `cargo test -p reweave`.
 - Run one Rust test with a filter, for example `cargo test -p reweave common::board::tests::find1`.
 - Check the WASM crate against its real target with `cargo check -p frontend --target wasm32-unknown-unknown`.

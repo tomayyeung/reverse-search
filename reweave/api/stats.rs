@@ -1,39 +1,6 @@
-use vercel_runtime::{Error, Request, Response, ResponseBody, run, service_fn};
-
-use reweave::auth::optional_app_user;
-use reweave::helper::{
-    IncrementPuzzleStatInput, cors_response, forbidden_origin_response, increment_stat,
-    json_err_response, json_response, read_json_body, require_allowed_origin,
-    unauthorized_response,
-};
-
-pub async fn handler(req: Request) -> Result<Response<ResponseBody>, Error> {
-    let origin = match require_allowed_origin(&req) {
-        Ok(origin) => origin,
-        Err(_) => return forbidden_origin_response(),
-    };
-
-    match req.method().as_str() {
-        "OPTIONS" => match origin.as_deref() {
-            Some(origin) => cors_response(204, "", origin),
-            None => forbidden_origin_response(),
-        },
-        "POST" => {
-            let user = match optional_app_user(&req).await {
-                Ok(user) => user,
-                Err(err) => return unauthorized_response(&err.0, origin.as_deref()),
-            };
-            let params: IncrementPuzzleStatInput = read_json_body(req).await?;
-            json_response(
-                increment_stat(params, user.as_ref()).await,
-                origin.as_deref(),
-            )
-        }
-        _ => json_err_response("Invalid method request", origin.as_deref()),
-    }
-}
+use vercel_runtime::{Error, run, service_fn};
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
-    run(service_fn(handler)).await
+    run(service_fn(reweave::api::stats)).await
 }

@@ -124,18 +124,25 @@ pnpm --dir frontend run dev
 
 ### Backend
 
-The backend is built around Vercel serverless functions and is run locally with the Vercel CLI from `reweave/`. Provide `DATABASE_URL` for a local PostgreSQL database, using the same environment variable shape as production:
+For normal local development, run the single-process backend server from `reweave/`. It loads `reweave/.env`, binds `127.0.0.1:3000` by default, and avoids the Vercel CLI Rust dev-server port race:
+
+```sh
+cd reweave
+cargo run --bin local-backend
+```
+
+Set `LOCAL_BACKEND_ADDR` to use a different bind address:
+
+```sh
+cd reweave
+LOCAL_BACKEND_ADDR=127.0.0.1:3001 cargo run --bin local-backend
+```
+
+The backend still deploys as Vercel serverless functions. Use the Vercel CLI only when you specifically need to test Vercel's local function runtime:
 
 ```sh
 cd reweave
 DATABASE_URL=... vc dev
-```
-
-or:
-
-```sh
-cd reweave
-DATABASE_URL=... vercel dev
 ```
 
 The local database must have the schema from `schema.sql` applied before creating or loading puzzles. For example, from the repo root:
@@ -144,7 +151,7 @@ The local database must have the schema from `schema.sql` applied before creatin
 psql "$DATABASE_URL" -f schema.sql
 ```
 
-Someone running the backend this way should not need access to the production Vercel project, but the Vercel CLI may still ask them to log in and link or create their own local Vercel project.
+Someone running the single-process local backend does not need access to the production Vercel project.
 
 ### Build And Checks
 
@@ -173,7 +180,7 @@ cargo fmt --check
 
 The frontend reads `VITE_API_URL` as its API base URL. If it is unset, requests use same-origin `/api`; Vite proxies `/api` to `http://localhost:3000` during local frontend development.
 
-The backend requires `DATABASE_URL` in all environments. Use a local PostgreSQL database URL for development and the production PostgreSQL URL in deployed environments.
+The backend requires `DATABASE_URL` in all environments. Use a local PostgreSQL database URL for development and the production PostgreSQL URL in deployed environments. Local browser requests usually come from `http://localhost:5173`, so include that in `ALLOWED_ORIGIN` when making cross-origin requests directly to the backend.
 
 ## Deploy
 

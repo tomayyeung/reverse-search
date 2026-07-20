@@ -1270,7 +1270,10 @@ dependencies = [
 name = "reweave"
 version = "0.1.0"
 dependencies = [
+ "dotenvy",
  "http-body-util",
+ "hyper",
+ "hyper-util",
  "jsonwebtoken",
  "reqwest",
  "serde",

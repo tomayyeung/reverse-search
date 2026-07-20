@@ -2,6 +2,9 @@ pub mod common;
 
 // wasm frontend doesn't need these backend modules
 #[cfg(not(target_arch = "wasm32"))]
+pub mod api;
+
+#[cfg(not(target_arch = "wasm32"))]
 pub mod auth;
 
 #[cfg(not(target_arch = "wasm32"))]
