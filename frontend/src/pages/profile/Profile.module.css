@@ -65,6 +65,22 @@
   white-space: nowrap;
 }
 
+.editNameButton {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.35rem 0.65rem;
+  background: var(--surface-strong);
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.editNameButton:hover,
+.editNameButton:focus {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
 .header p {
   margin: 0.25rem 0 0;
   color: var(--text-muted);
@@ -116,6 +132,113 @@
   padding-left: 0.35rem;
 }
 
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgb(38 51 47 / 35%);
+  backdrop-filter: blur(5px);
+}
+
+.modal {
+  width: min(100%, 28rem);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: clamp(1.25rem, 3vw, 1.75rem);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-soft);
+}
+
+.modal h2 {
+  margin: 0 0 1rem;
+  color: var(--text);
+  font-size: clamp(1.35rem, 3vw, 1.8rem);
+  letter-spacing: -0.04em;
+}
+
+.field {
+  display: grid;
+  gap: 0.45rem;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.field input {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 0.8rem;
+  background: var(--surface-strong);
+  color: var(--text);
+  font: inherit;
+  font-size: 1rem;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.field input:focus {
+  border-color: var(--accent);
+  outline: none;
+  background: var(--surface);
+}
+
+.helpText,
+.errorText {
+  margin: 0.7rem 0 0;
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.helpText {
+  color: var(--text-muted);
+}
+
+.errorText {
+  color: #9f2d2d;
+}
+
+.modalActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1.25rem;
+}
+
+.modalActions button,
+.secondaryButton {
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 0.55rem 0.9rem;
+  background: var(--accent);
+  color: #ffffff;
+  font-weight: 900;
+}
+
+.modalActions button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.modalActions .secondaryButton {
+  border-color: var(--border);
+  background: var(--surface-strong);
+  color: var(--text);
+}
+
+.modalActions .secondaryButton:hover,
+.modalActions .secondaryButton:focus {
+  border-color: var(--accent);
+  color: var(--accent-strong);
+}
+
 @media (max-width: 720px) {
   .profile {
     padding-top: 18px;
@@ -125,6 +248,15 @@
   .sectionHeader {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .modalActions {
+    justify-content: stretch;
+  }
+
+  .modalActions button,
+  .secondaryButton {
+    flex: 1 1 100%;
   }
 
 }

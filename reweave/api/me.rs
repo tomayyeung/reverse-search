@@ -5,8 +5,9 @@ use vercel_runtime::{Error, Request, Response, ResponseBody, run, service_fn};
 
 use reweave::auth::require_app_user;
 use reweave::helper::{
-    cors_response, current_user, forbidden_origin_response, json_err_response, json_response,
-    require_allowed_origin, unauthorized_response,
+    UpdateMeInput, cors_response, current_user, forbidden_origin_response, json_err_response,
+    json_response, read_json_body, require_allowed_origin, unauthorized_response,
+    update_current_user,
 };
 
 pub async fn handler(req: Request) -> Result<Response<ResponseBody>, Error> {
@@ -24,6 +25,15 @@ pub async fn handler(req: Request) -> Result<Response<ResponseBody>, Error> {
             };
 
             json_response(current_user(&user), &origin)
+        }
+        "PATCH" => {
+            let user = match require_app_user(&req).await {
+                Ok(user) => user,
+                Err(err) => return unauthorized_response(&err.0, &origin),
+            };
+            let params: UpdateMeInput = read_json_body(req).await?;
+
+            json_response(update_current_user(params, &user).await, &origin)
         }
         _ => json_err_response("Invalid method request", &origin),
     }

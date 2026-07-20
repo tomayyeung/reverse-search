@@ -154,6 +154,7 @@ impl From<CompletedPuzzleRow> for CompletedPuzzleRecord {
 pub struct AppUser {
     pub id: Uuid,
     pub username: String,
+    pub display_name: Option<String>,
 }
 
 pub struct ClerkUserData {
@@ -232,8 +233,8 @@ pub async fn ensure_app_user(user: ClerkUserData) -> Result<AppUser, Box<dyn Err
         .filter(|username| !username.trim().is_empty())
         .unwrap_or_else(|| fallback_username(&user.clerk_user_id));
 
-    let (id, username): (Uuid, String) = sqlx::query_as(
-        "INSERT INTO users (clerk_user_id, username, display_name, avatar_url, email) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (clerk_user_id) DO UPDATE SET username = CASE WHEN $6 AND (users.username = 'user' OR users.username LIKE 'user_%') THEN EXCLUDED.username ELSE users.username END, display_name = EXCLUDED.display_name, avatar_url = EXCLUDED.avatar_url, email = EXCLUDED.email, updated_at = now() RETURNING id, username",
+    let (id, username, display_name): (Uuid, String, Option<String>) = sqlx::query_as(
+        "INSERT INTO users (clerk_user_id, username, display_name, avatar_url, email) VALUES ($1, $2, $3, $4, $5) ON CONFLICT (clerk_user_id) DO UPDATE SET username = CASE WHEN $6 AND (users.username = 'user' OR users.username LIKE 'user_%') THEN EXCLUDED.username ELSE users.username END, avatar_url = EXCLUDED.avatar_url, email = EXCLUDED.email, updated_at = now() RETURNING id, username, display_name",
     )
     .bind(user.clerk_user_id)
     .bind(username)
@@ -244,7 +245,30 @@ pub async fn ensure_app_user(user: ClerkUserData) -> Result<AppUser, Box<dyn Err
     .fetch_one(get_puzzles_pool())
     .await?;
 
-    Ok(AppUser { id, username })
+    Ok(AppUser {
+        id,
+        username,
+        display_name,
+    })
+}
+
+pub async fn update_user_display_name(
+    user_id: Uuid,
+    display_name: Option<String>,
+) -> Result<AppUser, Box<dyn Error>> {
+    let (id, username, display_name): (Uuid, String, Option<String>) = sqlx::query_as(
+        "UPDATE users SET display_name = $1, updated_at = now() WHERE id = $2 RETURNING id, username, display_name",
+    )
+    .bind(display_name)
+    .bind(user_id)
+    .fetch_one(get_puzzles_pool())
+    .await?;
+
+    Ok(AppUser {
+        id,
+        username,
+        display_name,
+    })
 }
 
 pub async fn get_puzzle(puzzle_id: &str) -> Option<Puzzle> {

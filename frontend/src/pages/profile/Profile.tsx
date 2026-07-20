@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { useAuth } from "@clerk/react";
 
 import { PuzzleCard } from "@/components/PuzzleCard";
 import type { PuzzleSummary } from "@/components/PuzzleCard";
@@ -24,6 +25,11 @@ type ProfileResponse = {
   };
   createdPuzzles: PuzzleSummary[];
   completedPuzzles: CompletedPuzzle[];
+};
+
+type MeResponse = {
+  username: string;
+  displayName: string | null;
 };
 
 function formatDate(value: string) {
@@ -59,9 +65,15 @@ function formatDuration(totalSeconds: number) {
 
 export default function ProfilePage() {
   const { user } = useParams();
+  const { isLoaded, isSignedIn, getToken } = useAuth();
   const [profile, setProfile] = useState<ProfileResponse | undefined>();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | undefined>();
+  const [currentUsername, setCurrentUsername] = useState<string | undefined>();
+  const [isEditingDisplayName, setIsEditingDisplayName] = useState(false);
+  const [displayNameInput, setDisplayNameInput] = useState("");
+  const [saveError, setSaveError] = useState<string | undefined>();
+  const [savingDisplayName, setSavingDisplayName] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -107,6 +119,106 @@ export default function ProfilePage() {
     };
   }, [user]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchCurrentUser() {
+      if (!isLoaded || !isSignedIn) {
+        setCurrentUsername(undefined);
+        return;
+      }
+
+      try {
+        const token = await getToken();
+        const headers: HeadersInit = {};
+
+        if (token !== null) {
+          headers.Authorization = `Bearer ${token}`;
+        }
+
+        const response = await fetch(`${API_URL}/api/me`, { headers });
+        const data = (await response.json()) as MeResponse;
+
+        if (!response.ok) {
+          throw new Error("Failed to load account profile");
+        }
+
+        if (!cancelled) {
+          setCurrentUsername(data.username);
+        }
+      } catch {
+        if (!cancelled) {
+          setCurrentUsername(undefined);
+        }
+      }
+    }
+
+    void fetchCurrentUser();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [getToken, isLoaded, isSignedIn]);
+
+  const isOwnProfile =
+    profile !== undefined && currentUsername === profile.user.username;
+
+  function openDisplayNameEditor() {
+    setDisplayNameInput(profile?.user.displayName ?? "");
+    setSaveError(undefined);
+    setIsEditingDisplayName(true);
+  }
+
+  async function saveDisplayName() {
+    setSavingDisplayName(true);
+    setSaveError(undefined);
+
+    try {
+      const token = await getToken();
+      const headers: HeadersInit = {
+        "Content-Type": "application/json",
+      };
+
+      if (token !== null) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${API_URL}/api/me`, {
+        method: "PATCH",
+        headers,
+        body: JSON.stringify({ displayName: displayNameInput }),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "Failed to update display name");
+      }
+
+      const updatedUser = data as MeResponse;
+
+      setProfile((currentProfile) => {
+        if (currentProfile === undefined) {
+          return currentProfile;
+        }
+
+        return {
+          ...currentProfile,
+          user: {
+            ...currentProfile.user,
+            displayName: updatedUser.displayName,
+          },
+        };
+      });
+      setIsEditingDisplayName(false);
+    } catch (error) {
+      setSaveError(
+        error instanceof Error ? error.message : "Failed to update display name",
+      );
+    } finally {
+      setSavingDisplayName(false);
+    }
+  }
+
   return (
     <main className={styles.profile}>
       {loading ? <p className={styles.status}>Loading profile...</p> : null}
@@ -134,6 +246,15 @@ export default function ProfilePage() {
                   {profile.user.displayName ?? profile.user.username}
                 </h2>
                 {profile.user.official ? <span>Official</span> : null}
+                {isOwnProfile ? (
+                  <button
+                    type="button"
+                    className={styles.editNameButton}
+                    onClick={openDisplayNameEditor}
+                  >
+                    Edit display name
+                  </button>
+                ) : null}
               </div>
               <p>@{profile.user.username}</p>
               <p>Joined {formatDate(profile.user.createdAt)}</p>
@@ -182,6 +303,52 @@ export default function ProfilePage() {
             )}
           </section>
         </>
+      ) : null}
+
+      {isEditingDisplayName ? (
+        <div className={styles.modalOverlay} role="presentation">
+          <form
+            className={styles.modal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="display-name-title"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void saveDisplayName();
+            }}
+          >
+            <h2 id="display-name-title">Change display name</h2>
+            <label className={styles.field}>
+              <span>Display name</span>
+              <input
+                type="text"
+                value={displayNameInput}
+                maxLength={60}
+                onChange={(event) => setDisplayNameInput(event.target.value)}
+                disabled={savingDisplayName}
+              />
+            </label>
+            <p className={styles.helpText}>
+              Leave this blank to show your username instead.
+            </p>
+            {saveError !== undefined ? (
+              <p className={styles.errorText}>{saveError}</p>
+            ) : null}
+            <div className={styles.modalActions}>
+              <button type="submit" disabled={savingDisplayName}>
+                {savingDisplayName ? "Saving..." : "Save"}
+              </button>
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                onClick={() => setIsEditingDisplayName(false)}
+                disabled={savingDisplayName}
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
       ) : null}
     </main>
   );

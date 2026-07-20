@@ -16,6 +16,7 @@ const ALLOWED_ORIGIN_ENV: &str = "ALLOWED_ORIGIN";
 const DEFAULT_PUZZLES_LIMIT: usize = 24;
 const MAX_PUZZLES_LIMIT: usize = 100;
 const DESCRIPTION_LIMIT: usize = 60;
+const DISPLAY_NAME_LIMIT: usize = 60;
 
 fn allowed_origin_from_request(req: &Request) -> Option<&str> {
     req.headers()
@@ -56,7 +57,7 @@ pub fn cors_response(
     Ok(Response::builder()
         .status(status)
         .header("Access-Control-Allow-Origin", origin)
-        .header("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
+        .header("Access-Control-Allow-Methods", "GET,POST,PATCH,OPTIONS")
         .header("Access-Control-Allow-Headers", "Content-Type,Authorization")
         .header("Vary", "Origin")
         .body(body.into())?)
@@ -74,7 +75,7 @@ pub fn unauthorized_response(message: &str, origin: &str) -> Result<Response<Res
         .status(401)
         .header("Content-Type", "application/json")
         .header("Access-Control-Allow-Origin", origin)
-        .header("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
+        .header("Access-Control-Allow-Methods", "GET,POST,PATCH,OPTIONS")
         .header("Access-Control-Allow-Headers", "Content-Type,Authorization")
         .header("Vary", "Origin")
         .body(ResponseBody::from(json!({ "error": message })))?)
@@ -95,7 +96,7 @@ pub fn json_response<T: Serialize>(
         .status(status)
         .header("Content-Type", "application/json")
         .header("Access-Control-Allow-Origin", origin)
-        .header("Access-Control-Allow-Methods", "GET,POST,OPTIONS")
+        .header("Access-Control-Allow-Methods", "GET,POST,PATCH,OPTIONS")
         .header("Access-Control-Allow-Headers", "Content-Type,Authorization")
         .header("Vary", "Origin")
         .body(ResponseBody::from(value))?)
@@ -132,12 +133,45 @@ pub struct CreateOutput {
 #[serde(rename_all = "camelCase")]
 pub struct MeOutput {
     username: String,
+    display_name: Option<String>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateMeInput {
+    display_name: Option<String>,
 }
 
 pub fn current_user(user: &AppUser) -> Result<MeOutput, ErrorResponse> {
     Ok(MeOutput {
         username: user.username.clone(),
+        display_name: user.display_name.clone(),
     })
+}
+
+pub async fn update_current_user(
+    inp: UpdateMeInput,
+    user: &AppUser,
+) -> Result<MeOutput, ErrorResponse> {
+    let display_name = inp
+        .display_name
+        .map(|display_name| display_name.trim().to_string());
+
+    if display_name
+        .as_ref()
+        .is_some_and(|display_name| display_name.chars().count() > DISPLAY_NAME_LIMIT)
+    {
+        return Err(ErrorResponse(format!(
+            "display name must be {DISPLAY_NAME_LIMIT} characters or fewer"
+        )));
+    }
+
+    let display_name = display_name.filter(|display_name| !display_name.is_empty());
+    let user = update_user_display_name(user.id, display_name)
+        .await
+        .map_err(|e| ErrorResponse(e.to_string()))?;
+
+    current_user(&user)
 }
 
 pub async fn create(inp: CreateInput, creator: &AppUser) -> Result<CreateOutput, ErrorResponse> {
