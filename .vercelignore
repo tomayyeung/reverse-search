@@ -9,6 +9,7 @@ wordlist/target
 wordlist/blacklist.txt
 wordlist/CSW24.txt
 
-reweave/.env
+.env
 
-AGENTS.md
+*.md
+*.sql
