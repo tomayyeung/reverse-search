@@ -1,12 +1,6 @@
 # Todo
 - update screenshots (as app changes, remove dev stuff, etc)
 - ui/ux
-- [ ] users w/ auth
-  - [x] only registered users can create
-  - [ ] keeps track of completed puzzles
-  - [ ] creating a puzzle records the user who made it
-- [ ] auth to backend - not everyone should be able to access backend, especially /api/create
-- [ ] modify puzzle
 - [ ] mobile support
 - [ ] big words
 ---
@@ -27,4 +21,10 @@
   - [x] navbar (create, search, user)
   - [x] list existing puzzles
   - [x] /search page
+- users w/ auth
+  - [x] only registered users can create
+  - [x] keeps track of completed puzzles
+  - [x] creating a puzzle records the user who made it
+- [x] auth to backend - not everyone should be able to access backend, especially /api/create
+- [x] modify puzzle
  
