@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { ClerkProvider } from '@clerk/react'
+import { ui } from '@clerk/ui'
 import './index.css'
 import App from './App.tsx'
 import { BrowserRouter } from 'react-router-dom'
@@ -13,7 +14,7 @@ if (clerkPublishableKey === undefined || clerkPublishableKey === "") {
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ClerkProvider publishableKey={clerkPublishableKey}>
+    <ClerkProvider publishableKey={clerkPublishableKey} ui={ui}>
       <BrowserRouter>
         <App />
       </BrowserRouter>
