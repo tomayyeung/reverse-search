@@ -37,6 +37,25 @@
   min-width: 7rem;
 }
 
+.fieldHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.4rem;
+}
+
+.fieldHeader label {
+  margin-bottom: 0;
+}
+
+.characterCount {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
 .secondaryButton {
   border-color: var(--border-strong);
   background: var(--surface);

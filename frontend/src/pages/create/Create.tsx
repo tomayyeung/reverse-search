@@ -37,6 +37,7 @@ export default function CreatePage() {
   const [puzzleId, setPuzzleId] = useState<string | undefined>();
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | undefined>();
+  const [puzzleName, setPuzzleName] = useState("");
   const [pendingSubmission, setPendingSubmission] = useState<
     PendingSubmission | undefined
   >();
@@ -214,11 +215,18 @@ export default function CreatePage() {
           autoComplete="off"
         >
           <div className={styles.formField}>
-            <label htmlFor="puzzle-name">Puzzle name</label>
+            <div className={styles.fieldHeader}>
+              <label htmlFor="puzzle-name">Puzzle name</label>
+              <div className={styles.characterCount}>
+                {puzzleName.length}/{PUZZLE_TITLE_LIMIT}
+              </div>
+            </div>
             <input
               id="puzzle-name"
               name="puzzle-name"
+              value={puzzleName}
               maxLength={PUZZLE_TITLE_LIMIT}
+              onChange={(event) => setPuzzleName(event.target.value)}
             />
           </div>
           <button type="submit">Submit puzzle</button>
