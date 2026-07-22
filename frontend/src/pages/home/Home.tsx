@@ -4,10 +4,12 @@ import { Link } from "react-router-dom";
 import { PuzzleCard } from "@/components/PuzzleCard";
 import type { PuzzleSummary } from "@/components/PuzzleCard";
 import { API_URL } from "@/config";
+import { useCurrentUser } from "@/useCurrentUser";
 
 import styles from "./Home.module.css";
 
 export default function HomePage() {
+  const currentUser = useCurrentUser();
   const [puzzles, setPuzzles] = useState<PuzzleSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | undefined>();
@@ -58,6 +60,14 @@ export default function HomePage() {
     };
   }, []);
 
+  function updatePuzzle(updatedPuzzle: PuzzleSummary) {
+    setPuzzles((currentPuzzles) =>
+      currentPuzzles.map((puzzle) =>
+        puzzle.id === updatedPuzzle.id ? updatedPuzzle : puzzle,
+      ),
+    );
+  }
+
   return (
     <main className={styles.home}>
       <section className={styles.puzzleSection} aria-labelledby="puzzles-title">
@@ -80,7 +90,12 @@ export default function HomePage() {
 
         <div className={styles.list}>
           {puzzles.map((puzzle) => (
-            <PuzzleCard key={puzzle.id} puzzle={puzzle} />
+            <PuzzleCard
+              key={puzzle.id}
+              puzzle={puzzle}
+              currentUser={currentUser}
+              onPuzzleUpdated={updatePuzzle}
+            />
           ))}
         </div>
       </section>

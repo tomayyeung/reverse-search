@@ -5,6 +5,7 @@ import { useAuth } from "@clerk/react";
 import { PuzzleCard } from "@/components/PuzzleCard";
 import type { PuzzleSummary } from "@/components/PuzzleCard";
 import { API_URL } from "@/config";
+import { useCurrentUser } from "@/useCurrentUser";
 
 import styles from "./Profile.module.css";
 
@@ -30,6 +31,7 @@ type ProfileResponse = {
 type MeResponse = {
   username: string;
   displayName: string | null;
+  official: boolean;
 };
 
 function formatDate(value: string) {
@@ -65,11 +67,11 @@ function formatDuration(totalSeconds: number) {
 
 export default function ProfilePage() {
   const { user } = useParams();
-  const { isLoaded, isSignedIn, getToken } = useAuth();
+  const { getToken } = useAuth();
+  const currentUser = useCurrentUser();
   const [profile, setProfile] = useState<ProfileResponse | undefined>();
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | undefined>();
-  const [currentUsername, setCurrentUsername] = useState<string | undefined>();
   const [isEditingDisplayName, setIsEditingDisplayName] = useState(false);
   const [displayNameInput, setDisplayNameInput] = useState("");
   const [saveError, setSaveError] = useState<string | undefined>();
@@ -127,60 +129,28 @@ export default function ProfilePage() {
     };
   }, [user]);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    let cancelled = false;
-
-    async function fetchCurrentUser() {
-      if (!isLoaded || !isSignedIn) {
-        setCurrentUsername(undefined);
-        return;
-      }
-
-      try {
-        const token = await getToken();
-        if (cancelled) return;
-
-        const headers: HeadersInit = {};
-
-        if (token !== null) {
-          headers.Authorization = `Bearer ${token}`;
-        }
-
-        const response = await fetch(`${API_URL}/api/me`, {
-          headers,
-          signal: controller.signal,
-        });
-        const data = (await response.json()) as MeResponse;
-
-        if (!response.ok) {
-          throw new Error("Failed to load account profile");
-        }
-
-        if (!cancelled) {
-          setCurrentUsername(data.username);
-        }
-      } catch (error) {
-        if (error instanceof DOMException && error.name === "AbortError") {
-          return;
-        }
-
-        if (!cancelled) {
-          setCurrentUsername(undefined);
-        }
-      }
-    }
-
-    void fetchCurrentUser();
-
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, [getToken, isLoaded, isSignedIn]);
-
   const isOwnProfile =
-    profile !== undefined && currentUsername === profile.user.username;
+    profile !== undefined && currentUser?.username === profile.user.username;
+
+  function updatePuzzle(updatedPuzzle: PuzzleSummary) {
+    setProfile((currentProfile) => {
+      if (currentProfile === undefined) {
+        return currentProfile;
+      }
+
+      return {
+        ...currentProfile,
+        createdPuzzles: currentProfile.createdPuzzles.map((puzzle) =>
+          puzzle.id === updatedPuzzle.id ? updatedPuzzle : puzzle,
+        ),
+        completedPuzzles: currentProfile.completedPuzzles.map((completion) =>
+          completion.puzzle.id === updatedPuzzle.id
+            ? { ...completion, puzzle: updatedPuzzle }
+            : completion,
+        ),
+      };
+    });
+  }
 
   function openDisplayNameEditor() {
     setDisplayNameInput(profile?.user.displayName ?? "");
@@ -290,7 +260,12 @@ export default function ProfilePage() {
             ) : (
               <div className={styles.list}>
                 {profile.createdPuzzles.map((puzzle) => (
-                  <PuzzleCard key={puzzle.id} puzzle={puzzle} />
+                  <PuzzleCard
+                    key={puzzle.id}
+                    puzzle={puzzle}
+                    currentUser={currentUser}
+                    onPuzzleUpdated={updatePuzzle}
+                  />
                 ))}
               </div>
             )}
@@ -310,7 +285,11 @@ export default function ProfilePage() {
                     key={`${completion.puzzle.id}-${completion.completedAt}`}
                     className={styles.completionItem}
                   >
-                    <PuzzleCard puzzle={completion.puzzle} />
+                    <PuzzleCard
+                      puzzle={completion.puzzle}
+                      currentUser={currentUser}
+                      onPuzzleUpdated={updatePuzzle}
+                    />
                     <div className={styles.completionMeta}>
                       <span>{formatDuration(completion.completionTimeSeconds)}</span>
                       <span>Completed {formatDate(completion.completedAt)}</span>

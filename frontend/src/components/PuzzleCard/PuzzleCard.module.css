@@ -1,4 +1,5 @@
 .listItem {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 1rem;
@@ -8,7 +9,6 @@
   padding: 1rem 1.1rem;
   background: var(--surface);
   color: inherit;
-  text-decoration: none;
   transition:
     border-color 160ms ease,
     transform 160ms ease;
@@ -19,8 +19,17 @@
   transform: translateY(-2px);
 }
 
+.listItem:focus-within {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent-soft);
+  outline-offset: 2px;
+}
+
 .puzzleInfo {
+  position: relative;
+  z-index: 2;
   min-width: 0;
+  pointer-events: none;
 }
 
 .listItemHeader {
@@ -35,7 +44,8 @@
 }
 
 .listItemHeader span,
-.stats span {
+.stats span,
+.modifyButton {
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
@@ -45,6 +55,20 @@
   font-size: 0.82rem;
   font-weight: 900;
   white-space: nowrap;
+}
+
+.modifyButton {
+  position: relative;
+  z-index: 3;
+  border: 1px solid var(--border);
+  background: var(--surface-strong);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+.modifyButton:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .description {
@@ -59,10 +83,119 @@
 }
 
 .stats {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
   justify-content: flex-end;
+  pointer-events: none;
+}
+
+.cardLink {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: rgb(38 51 47 / 35%);
+  backdrop-filter: blur(5px);
+}
+
+.popup {
+  width: min(100%, 28rem);
+  border: 3px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: clamp(1.25rem, 3vw, 1.75rem);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.popup h2 {
+  margin: 0;
+  text-align: center;
+}
+
+.textEntry {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.textEntry span {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  font-weight: 650;
+}
+
+.textEntry input,
+.textEntry textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.65rem 0.8rem;
+  background: var(--surface-strong);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  transition:
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.textEntry textarea {
+  min-height: 6rem;
+  resize: vertical;
+}
+
+.textEntry input:focus,
+.textEntry textarea:focus {
+  border-color: var(--accent);
+  outline: none;
+  background: var(--surface);
+}
+
+.characterCount {
+  margin-top: 0.35rem;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-align: right;
+}
+
+.errorText {
+  margin: 1rem 0 0;
+  color: var(--danger, #9f2d2d);
+  font-weight: 650;
+  text-align: center;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-top: 1.25rem;
+}
+
+.actions button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.secondaryButton {
+  border: 1px solid var(--border);
+  background: var(--surface-strong);
+  color: var(--text);
 }
 
 @media (max-width: 720px) {

@@ -15,6 +15,7 @@ pub struct ErrorResponse(pub String);
 const ALLOWED_ORIGIN_ENV: &str = "ALLOWED_ORIGIN";
 const DEFAULT_PUZZLES_LIMIT: usize = 24;
 const MAX_PUZZLES_LIMIT: usize = 100;
+const PUZZLE_TITLE_LIMIT: usize = 40;
 const DESCRIPTION_LIMIT: usize = 60;
 const DISPLAY_NAME_LIMIT: usize = 60;
 
@@ -147,6 +148,7 @@ pub struct CreateOutput {
 pub struct MeOutput {
     username: String,
     display_name: Option<String>,
+    official: bool,
 }
 
 #[derive(Deserialize)]
@@ -159,6 +161,7 @@ pub fn current_user(user: &AppUser) -> Result<MeOutput, ErrorResponse> {
     Ok(MeOutput {
         username: user.username.clone(),
         display_name: user.display_name.clone(),
+        official: user.role == "admin",
     })
 }
 
@@ -188,6 +191,14 @@ pub async fn update_current_user(
 }
 
 pub async fn create(inp: CreateInput, creator: &AppUser) -> Result<CreateOutput, ErrorResponse> {
+    let name = inp.name.trim().to_string();
+
+    if name.chars().count() > PUZZLE_TITLE_LIMIT {
+        return Err(ErrorResponse(format!(
+            "puzzle title must be {PUZZLE_TITLE_LIMIT} characters or fewer"
+        )));
+    }
+
     let description = inp
         .description
         .map(|description| description.trim().to_string());
@@ -204,7 +215,7 @@ pub async fn create(inp: CreateInput, creator: &AppUser) -> Result<CreateOutput,
     let description = description.filter(|description| !description.is_empty());
 
     let puzzle = match puzzle::Puzzle::create(
-        inp.name,
+        name,
         description,
         inp.width,
         inp.height,
@@ -238,6 +249,48 @@ pub async fn load_puzzle(inp: LoadInput) -> Result<puzzle::Puzzle, ErrorResponse
             &inp.puzzle_id
         ))),
     }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdatePuzzleInput {
+    puzzle_id: String,
+    name: String,
+    description: Option<String>,
+}
+
+pub async fn update_puzzle(
+    inp: UpdatePuzzleInput,
+    user: &AppUser,
+) -> Result<PuzzleSummary, ErrorResponse> {
+    let name = inp.name.trim().to_string();
+
+    if name.chars().count() > PUZZLE_TITLE_LIMIT {
+        return Err(ErrorResponse(format!(
+            "puzzle title must be {PUZZLE_TITLE_LIMIT} characters or fewer"
+        )));
+    }
+
+    let description = inp
+        .description
+        .map(|description| description.trim().to_string());
+
+    if description
+        .as_ref()
+        .is_some_and(|description| description.chars().count() > DESCRIPTION_LIMIT)
+    {
+        return Err(ErrorResponse(format!(
+            "description must be {DESCRIPTION_LIMIT} characters or fewer"
+        )));
+    }
+
+    let description = description.filter(|description| !description.is_empty());
+    let record = update_puzzle_metadata(&inp.puzzle_id, name, description, user)
+        .await
+        .map_err(|e| ErrorResponse(e.to_string()))?
+        .ok_or_else(|| ErrorResponse(String::from("invalid puzzle id or permission denied")))?;
+
+    Ok(puzzle_summary_from_record(record))
 }
 
 #[derive(Deserialize)]

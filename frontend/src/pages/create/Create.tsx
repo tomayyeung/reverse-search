@@ -18,6 +18,7 @@ import {
 } from "@wasm/frontend";
 
 const DESCRIPTION_LIMIT = 60;
+const PUZZLE_TITLE_LIMIT = 40;
 
 type PendingSubmission = {
   name: string;
@@ -214,7 +215,11 @@ export default function CreatePage() {
         >
           <div className={styles.formField}>
             <label htmlFor="puzzle-name">Puzzle name</label>
-            <input id="puzzle-name" name="puzzle-name" />
+            <input
+              id="puzzle-name"
+              name="puzzle-name"
+              maxLength={PUZZLE_TITLE_LIMIT}
+            />
           </div>
           <button type="submit">Submit puzzle</button>
         </form>

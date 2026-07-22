@@ -1,28 +1,12 @@
 import type { FormEvent } from "react";
 import { useState } from "react";
-import { Link } from "react-router-dom";
 
+import { PuzzleCard } from "@/components/PuzzleCard";
+import type { PuzzleSummary } from "@/components/PuzzleCard";
 import { API_URL } from "@/config";
+import { useCurrentUser } from "@/useCurrentUser";
 
 import styles from "./Search.module.css";
-
-type PuzzleSummary = {
-  id: string;
-  name: string;
-  width: number;
-  height: number;
-  startingLetters: number;
-  totalCells: number;
-  givenPercent: number;
-  plays: number;
-  completions: number;
-  creator: {
-    username: string;
-    displayName: string | null;
-    official: boolean;
-  };
-  description: string | null;
-};
 
 type GivenMode = "atLeast" | "atMost";
 
@@ -32,15 +16,8 @@ function addNumberParam(params: URLSearchParams, name: string, value: string) {
   }
 }
 
-function creatorLabel(creator: PuzzleSummary["creator"]) {
-  if (creator.official) {
-    return "Official";
-  }
-
-  return creator.username ?? creator.displayName;
-}
-
 export default function SearchPage() {
+  const currentUser = useCurrentUser();
   const [query, setQuery] = useState("");
   const [minWidth, setMinWidth] = useState("");
   const [minHeight, setMinHeight] = useState("");
@@ -98,6 +75,14 @@ export default function SearchPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function updatePuzzle(updatedPuzzle: PuzzleSummary) {
+    setPuzzles((currentPuzzles) =>
+      currentPuzzles.map((puzzle) =>
+        puzzle.id === updatedPuzzle.id ? updatedPuzzle : puzzle,
+      ),
+    );
   }
 
   return (
@@ -228,33 +213,12 @@ export default function SearchPage() {
 
         <div className={styles.list}>
           {puzzles.map((puzzle) => (
-            <Link
+            <PuzzleCard
               key={puzzle.id}
-              className={styles.listItem}
-              to={{ pathname: `/play/${puzzle.id}` }}
-            >
-              <div className={styles.puzzleInfo}>
-                <div className={styles.listItemHeader}>
-                  <h3>{puzzle.name}</h3>
-                  <span>
-                    {puzzle.width} x {puzzle.height}
-                  </span>
-                </div>
-                <p className={styles.description}>
-                  {puzzle.description ?? "No description provided."}
-                </p>
-                <p className={styles.creator}>By {creatorLabel(puzzle.creator)}</p>
-              </div>
-              <div className={styles.stats}>
-                <span>
-                  {puzzle.startingLetters}/{puzzle.totalCells} (
-                  {puzzle.givenPercent}%) starting letters
-                </span>
-                <span>
-                  {puzzle.plays} plays, {puzzle.completions} completions
-                </span>
-              </div>
-            </Link>
+              puzzle={puzzle}
+              currentUser={currentUser}
+              onPuzzleUpdated={updatePuzzle}
+            />
           ))}
         </div>
       </section>
