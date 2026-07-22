@@ -9,22 +9,28 @@ use vercel_runtime::{Error, Request, Response, ResponseBody};
 use crate::common::puzzle;
 use crate::db::*;
 
+/// API error body serialized by [`json_response`] as `{ "error": string }`.
 #[derive(Serialize)]
 pub struct ErrorResponse(pub String);
 
+// Comma-separated list of browser origins accepted for CORS responses.
 const ALLOWED_ORIGIN_ENV: &str = "ALLOWED_ORIGIN";
+// Default and hard cap for public puzzle-list queries.
 const DEFAULT_PUZZLES_LIMIT: usize = 24;
 const MAX_PUZZLES_LIMIT: usize = 100;
+// User-facing text limits mirrored by the frontend UI.
 const PUZZLE_TITLE_LIMIT: usize = 40;
 const DESCRIPTION_LIMIT: usize = 60;
 const DISPLAY_NAME_LIMIT: usize = 60;
 
+/// Returns the request `Origin` header when it is present and valid UTF-8.
 fn allowed_origin_from_request(req: &Request) -> Option<&str> {
     req.headers()
         .get("Origin")
         .and_then(|origin| origin.to_str().ok())
 }
 
+/// Checks an origin against the comma-separated `ALLOWED_ORIGIN` environment variable.
 fn is_allowed_origin(origin: &str) -> bool {
     env::var(ALLOWED_ORIGIN_ENV)
         .ok()
@@ -37,6 +43,11 @@ fn is_allowed_origin(origin: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// Validates request CORS origin against backend policy.
+///
+/// Same-origin or non-browser requests without an `Origin` header are accepted
+/// and return `Ok(None)`. Browser requests with an unrecognized origin return
+/// an [`ErrorResponse`].
 pub fn require_allowed_origin(req: &Request) -> Result<Option<String>, ErrorResponse> {
     let Some(origin) = allowed_origin_from_request(req) else {
         return Ok(None);
@@ -49,7 +60,10 @@ pub fn require_allowed_origin(req: &Request) -> Result<Option<String>, ErrorResp
     }
 }
 
-/// Create a CORS response to OPTIONS method requests
+/// Creates a CORS response for an allowed origin.
+///
+/// Used for both preflight responses and JSON responses that need explicit CORS
+/// headers in local or cross-origin deployments.
 pub fn cors_response(
     status: u16,
     body: impl Into<ResponseBody>,
@@ -64,6 +78,7 @@ pub fn cors_response(
         .body(body.into())?)
 }
 
+/// Creates a `403` JSON response for disallowed browser origins.
 pub fn forbidden_origin_response() -> Result<Response<ResponseBody>, Error> {
     Ok(Response::builder()
         .status(403)
@@ -71,6 +86,9 @@ pub fn forbidden_origin_response() -> Result<Response<ResponseBody>, Error> {
         .body(ResponseBody::from(json!({ "error": "Forbidden origin" })))?)
 }
 
+/// Creates a `401` JSON response and optional CORS headers.
+///
+/// Auth handlers pass user-safe error text from the auth layer as `message`.
 pub fn unauthorized_response(
     message: &str,
     origin: Option<&str>,
@@ -90,7 +108,10 @@ pub fn unauthorized_response(
     Ok(response.body(ResponseBody::from(json!({ "error": message })))?)
 }
 
-/// Create a JSON response to most HTTP requests
+/// Creates the standard JSON response shape for API helper results.
+///
+/// `Ok` values are returned with status `200`. [`ErrorResponse`] values are
+/// returned with status `400` and `{ "error": ... }`.
 pub fn json_response<T: Serialize>(
     out: Result<T, ErrorResponse>,
     origin: Option<&str>,
@@ -116,17 +137,21 @@ pub fn json_response<T: Serialize>(
     Ok(response.body(ResponseBody::from(value))?)
 }
 
-/// Create a JSON response with an error message
+/// Creates a standard `400` JSON error response.
 pub fn json_err_response(err: &str, origin: Option<&str>) -> Result<Response<ResponseBody>, Error> {
     json_response::<Value>(Err(ErrorResponse(String::from(err))), origin)
 }
 
-/// Parse HTTP JSON body
+/// Parses a request body as JSON.
+///
+/// Syntax and type errors are surfaced as runtime errors so endpoint handlers
+/// can return the platform's normal `500` wrapping in local/backend runtimes.
 pub async fn read_json_body<T: DeserializeOwned>(req: Request) -> Result<T, Error> {
     let bytes = req.into_body().collect().await?.to_bytes();
     Ok(serde_json::from_slice(&bytes)?)
 }
 
+/// Request body for `POST /api/create`.
 #[derive(Deserialize)]
 pub struct CreateInput {
     name: String,
@@ -138,11 +163,13 @@ pub struct CreateInput {
     answer: String,
 }
 
+/// Successful `POST /api/create` response body.
 #[derive(Serialize)]
 pub struct CreateOutput {
     id: String,
 }
 
+/// Current-user response returned by `/api/me`.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MeOutput {
@@ -151,12 +178,14 @@ pub struct MeOutput {
     official: bool,
 }
 
+/// Request body for updating the signed-in user's display name.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdateMeInput {
     display_name: Option<String>,
 }
 
+/// Converts an authenticated database user into the public `/api/me` shape.
 pub fn current_user(user: &AppUser) -> Result<MeOutput, ErrorResponse> {
     Ok(MeOutput {
         username: user.username.clone(),
@@ -165,6 +194,9 @@ pub fn current_user(user: &AppUser) -> Result<MeOutput, ErrorResponse> {
     })
 }
 
+/// Updates the signed-in user's optional display name.
+///
+/// Empty or whitespace-only display names are normalized to `None`.
 pub async fn update_current_user(
     inp: UpdateMeInput,
     user: &AppUser,
@@ -190,6 +222,10 @@ pub async fn update_current_user(
     current_user(&user)
 }
 
+/// Validates and persists a newly created puzzle for `creator`.
+///
+/// This trims user-facing metadata, enforces title/description limits, builds a
+/// shared [`puzzle::Puzzle`], and inserts it into the database.
 pub async fn create(inp: CreateInput, creator: &AppUser) -> Result<CreateOutput, ErrorResponse> {
     let name = inp.name.trim().to_string();
 
@@ -236,11 +272,13 @@ pub async fn create(inp: CreateInput, creator: &AppUser) -> Result<CreateOutput,
     Ok(CreateOutput { id })
 }
 
+/// Query parameters for loading a puzzle by ID.
 #[derive(Deserialize)]
 pub struct LoadInput {
     pub puzzle_id: String,
 }
 
+/// Loads a puzzle from persistence or returns an API-safe invalid-ID error.
 pub async fn load_puzzle(inp: LoadInput) -> Result<puzzle::Puzzle, ErrorResponse> {
     match get_puzzle(&inp.puzzle_id).await {
         Some(puzzle) => Ok(puzzle),
@@ -251,6 +289,7 @@ pub async fn load_puzzle(inp: LoadInput) -> Result<puzzle::Puzzle, ErrorResponse
     }
 }
 
+/// Request body for creator/admin puzzle metadata edits.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdatePuzzleInput {
@@ -259,6 +298,9 @@ pub struct UpdatePuzzleInput {
     description: Option<String>,
 }
 
+/// Updates puzzle title and description when `user` has permission.
+///
+/// Creators can edit their own puzzles; admin users can edit any puzzle.
 pub async fn update_puzzle(
     inp: UpdatePuzzleInput,
     user: &AppUser,
@@ -293,6 +335,10 @@ pub async fn update_puzzle(
     Ok(puzzle_summary_from_record(record))
 }
 
+/// Request body for `POST /api/stats`.
+///
+/// `event` must be `"play"` or `"completion"`. Completion events require
+/// `completionTimeSeconds` and may include `usedHint`.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IncrementPuzzleStatInput {
@@ -302,11 +348,16 @@ pub struct IncrementPuzzleStatInput {
     used_hint: Option<bool>,
 }
 
+/// Success body returned after recording a puzzle stat event.
 #[derive(Serialize)]
 pub struct IncrementPuzzleStatOutput {
     ok: bool,
 }
 
+/// Records a play or completion event for a puzzle.
+///
+/// Signed-out users may record anonymous stats. Signed-in completion events are
+/// associated with the app user for profile history.
 pub async fn increment_stat(
     inp: IncrementPuzzleStatInput,
     user: Option<&AppUser>,
@@ -329,6 +380,7 @@ pub async fn increment_stat(
     Ok(IncrementPuzzleStatOutput { ok: true })
 }
 
+/// Public puzzle-card summary returned by list, profile, and update endpoints.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PuzzleSummary {
@@ -345,6 +397,7 @@ pub struct PuzzleSummary {
     description: Option<String>,
 }
 
+/// Public creator metadata embedded in puzzle summaries.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PuzzleCreator {
@@ -353,6 +406,7 @@ pub struct PuzzleCreator {
     official: bool,
 }
 
+/// Public profile user metadata.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProfileUser {
@@ -363,6 +417,7 @@ pub struct ProfileUser {
     created_at: String,
 }
 
+/// Puzzle completion entry shown on profile pages.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompletedPuzzleSummary {
@@ -372,6 +427,7 @@ pub struct CompletedPuzzleSummary {
     completed_at: String,
 }
 
+/// Full profile response including created and completed puzzles.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProfileOutput {
@@ -380,11 +436,16 @@ pub struct ProfileOutput {
     completed_puzzles: Vec<CompletedPuzzleSummary>,
 }
 
+/// Query parameters for loading a public user profile.
 #[derive(Deserialize)]
 pub struct ProfileInput {
     pub username: String,
 }
 
+/// Query parameters accepted by `GET /api/puzzles`.
+///
+/// Dimension filters are orientation-insensitive: width/height pairs are
+/// normalized into short/long side bounds before querying.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ListPuzzlesInput {
@@ -398,6 +459,7 @@ pub struct ListPuzzlesInput {
     pub max_given_percent: Option<u8>,
 }
 
+/// Converts an internal database summary record into the public JSON shape.
 fn puzzle_summary_from_record(record: PuzzleSummaryRecord) -> PuzzleSummary {
     let total_cells = record.width * record.height;
     let starting_letters = record
@@ -430,6 +492,10 @@ fn puzzle_summary_from_record(record: PuzzleSummaryRecord) -> PuzzleSummary {
     }
 }
 
+/// Normalizes a width/height filter into `(short_side, long_side)`.
+///
+/// This makes search filters orientation-insensitive, so `3x5` and `5x3` are
+/// treated equivalently. Width and height must be supplied together.
 fn normalized_dimension_filter(
     width: Option<usize>,
     height: Option<usize>,
@@ -454,6 +520,7 @@ fn normalized_dimension_filter(
     }
 }
 
+/// Lists public puzzle summaries using validated filters and limits.
 pub async fn list_puzzles(inp: ListPuzzlesInput) -> Result<Vec<PuzzleSummary>, ErrorResponse> {
     let limit = inp.limit.unwrap_or(DEFAULT_PUZZLES_LIMIT);
 
@@ -495,6 +562,7 @@ pub async fn list_puzzles(inp: ListPuzzlesInput) -> Result<Vec<PuzzleSummary>, E
         .collect())
 }
 
+/// Loads a public user profile plus created and completed puzzle summaries.
 pub async fn load_profile(inp: ProfileInput) -> Result<ProfileOutput, ErrorResponse> {
     let username = inp.username.trim();
 

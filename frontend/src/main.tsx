@@ -12,6 +12,7 @@ if (clerkPublishableKey === undefined || clerkPublishableKey === "") {
   throw new Error("Missing VITE_CLERK_PUBLISHABLE_KEY");
 }
 
+// Provider order keeps Clerk auth and browser routing available to every page.
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ClerkProvider publishableKey={clerkPublishableKey} ui={ui}>

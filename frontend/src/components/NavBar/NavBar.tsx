@@ -9,6 +9,7 @@ type MeResponse = {
   username: string;
 };
 
+/** Top navigation with Clerk auth controls and synced app profile link. */
 export function NavBar() {
   const { isLoaded, isSignedIn, getToken } = useAuth();
   const [profileUsername, setProfileUsername] = useState<string | undefined>();
@@ -30,6 +31,7 @@ export function NavBar() {
           headers.Authorization = `Bearer ${token}`;
         }
 
+        // `/api/me` syncs Clerk with the app DB and gives us the profile route.
         const response = await fetch(`${API_URL}/api/me`, { headers });
         const data = (await response.json()) as MeResponse;
 
@@ -106,6 +108,7 @@ export function NavBar() {
           ) : null}
           {isLoaded && isSignedIn ? (
             <UserButton
+              // Clerk element keys are part of the styling contract with our CSS module.
               appearance={{
                 elements: {
                   userButtonAvatarBox: styles.userButtonAvatar,

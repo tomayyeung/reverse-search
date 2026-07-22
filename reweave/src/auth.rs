@@ -1,3 +1,8 @@
+//! Clerk authentication helpers for backend API handlers.
+//!
+//! The auth layer verifies Clerk JWTs, optionally enriches user data through the
+//! Clerk API, and upserts a local app user before endpoint handlers run.
+
 use jsonwebtoken::jwk::JwkSet;
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
 use serde::Deserialize;
@@ -6,13 +11,18 @@ use vercel_runtime::Request;
 
 use crate::db::{AppUser, ClerkUserData, ensure_app_user};
 
+// Required issuer URL used for Clerk JWKS discovery and JWT issuer validation.
 const CLERK_JWT_ISSUER_ENV: &str = "CLERK_JWT_ISSUER";
+// Optional JWT audience. When unset, audience validation is disabled.
 const CLERK_JWT_AUDIENCE_ENV: &str = "CLERK_JWT_AUDIENCE";
+// Optional Clerk secret key used to fetch richer user profile data.
 const CLERK_SECRET_KEY_ENV: &str = "CLERK_SECRET_KEY";
 
+/// Authentication error with API-safe text for unauthorized responses.
 #[derive(Debug)]
 pub struct AuthError(pub String);
 
+/// Subset of Clerk JWT claims used when Clerk API enrichment is unavailable.
 #[derive(Debug, Deserialize)]
 struct ClerkClaims {
     sub: String,
@@ -22,12 +32,14 @@ struct ClerkClaims {
     picture: Option<String>,
 }
 
+/// Email object from Clerk's user API response.
 #[derive(Debug, Deserialize)]
 struct ClerkEmailAddress {
     email_address: String,
     id: String,
 }
 
+/// Subset of Clerk's `/v1/users/{id}` response used to sync local users.
 #[derive(Debug, Deserialize)]
 struct ClerkUserResponse {
     id: String,
@@ -40,6 +52,7 @@ struct ClerkUserResponse {
 }
 
 impl ClerkUserResponse {
+    /// Joins first and last name into a display name, returning `None` if empty.
     fn display_name(&self) -> Option<String> {
         let name = [self.first_name.as_deref(), self.last_name.as_deref()]
             .into_iter()
@@ -50,6 +63,7 @@ impl ClerkUserResponse {
         if name.is_empty() { None } else { Some(name) }
     }
 
+    /// Returns Clerk's primary email, falling back to the first email address.
     fn primary_email(&self) -> Option<String> {
         self.primary_email_address_id
             .as_deref()
@@ -63,6 +77,7 @@ impl ClerkUserResponse {
     }
 }
 
+/// Extracts a non-empty `Bearer <token>` value from the `Authorization` header.
 fn bearer_token(req: &Request) -> Result<&str, AuthError> {
     let header = req
         .headers()
@@ -76,6 +91,7 @@ fn bearer_token(req: &Request) -> Result<&str, AuthError> {
         .ok_or_else(|| AuthError(String::from("invalid authorization token")))
 }
 
+/// Fetches Clerk's JSON Web Key Set from the configured issuer URL.
 async fn clerk_jwks(issuer: &str) -> Result<JwkSet, AuthError> {
     let url = format!("{}/.well-known/jwks.json", issuer.trim_end_matches('/'));
 
@@ -89,6 +105,10 @@ async fn clerk_jwks(issuer: &str) -> Result<JwkSet, AuthError> {
         .map_err(|e| AuthError(e.to_string()))
 }
 
+/// Verifies a Clerk JWT and returns the claims needed by the app.
+///
+/// Validation requires RS256, the configured issuer, the token key ID from
+/// Clerk's JWKS, and the optional configured audience.
 async fn verify_clerk_token(token: &str) -> Result<ClerkClaims, AuthError> {
     let issuer = env::var(CLERK_JWT_ISSUER_ENV)
         .map_err(|_| AuthError(String::from("missing CLERK_JWT_ISSUER")))?;
@@ -115,6 +135,9 @@ async fn verify_clerk_token(token: &str) -> Result<ClerkClaims, AuthError> {
         .map_err(|e| AuthError(e.to_string()))
 }
 
+/// Fetches rich Clerk user data when `CLERK_SECRET_KEY` is configured.
+///
+/// Returning `Ok(None)` means callers should fall back to JWT claims.
 async fn clerk_user_data_from_api(clerk_user_id: &str) -> Result<Option<ClerkUserData>, AuthError> {
     let secret_key = match env::var(CLERK_SECRET_KEY_ENV) {
         Ok(secret_key) if !secret_key.is_empty() => secret_key,
@@ -144,6 +167,10 @@ async fn clerk_user_data_from_api(clerk_user_id: &str) -> Result<Option<ClerkUse
     }))
 }
 
+/// Requires a valid Clerk bearer token and returns the synced local app user.
+///
+/// This has a database side effect: the Clerk user is inserted or updated in the
+/// local `users` table through [`ensure_app_user`].
 pub async fn require_app_user(req: &Request) -> Result<AppUser, AuthError> {
     let token = bearer_token(req)?;
     let claims = verify_clerk_token(token).await?;
@@ -165,6 +192,10 @@ pub async fn require_app_user(req: &Request) -> Result<AppUser, AuthError> {
         .map_err(|e| AuthError(e.to_string()))
 }
 
+/// Returns a synced app user when authorization is present, or `None` otherwise.
+///
+/// Invalid tokens still return an auth error. This is used by stats endpoints so
+/// anonymous plays can be counted while signed-in completions can be attributed.
 pub async fn optional_app_user(req: &Request) -> Result<Option<AppUser>, AuthError> {
     if req.headers().get("Authorization").is_none() {
         return Ok(None);

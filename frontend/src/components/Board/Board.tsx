@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import styles from "./Board.module.css";
 
+/** Serialized fillable blank used by Rust board parsing and the UI. */
 export const BLANK = "_";
+/** Serialized permanent hole used by Rust board parsing and the UI. */
 export const HOLE = "!";
 
 type TileProps = {
@@ -16,9 +18,11 @@ type TileProps = {
 };
 
 type BoardProps = {
+  /** Create mode permits hole toggles; play mode protects starting clues. */
   boardType: "Create" | "Play";
   /**
-   * create: done making word list, now removing letters from puzzle
+   * Create-mode clue-selection state. Before locking, `hardSet` means normal
+   * active tiles; after locking, it means letters visible to players.
    */
   filteringLetters: boolean;
   width: number;
@@ -26,12 +30,13 @@ type BoardProps = {
   boardLetters: string;
   hardSet: boolean[];
   /**
-   * only needed for playing. when playing, hard set is constant
+   * Only needed while creating. During play, hard-set letters are immutable.
    */
   setHardSet?: React.Dispatch<React.SetStateAction<boolean[]>>;
   setBoardLetters: React.Dispatch<React.SetStateAction<string>>;
   selectedTile?: number;
   setSelectedTile?: React.Dispatch<React.SetStateAction<number>>;
+  /** Called by play mode when the user changes a letter, used to count plays. */
   onUserLetterPlaced?: () => void;
 };
 
@@ -63,6 +68,12 @@ function Tile({
   );
 }
 
+/** Interactive board for puzzle creation and play.
+ *
+ * The board is controlled by a row-major `boardLetters` string. It supports
+ * click selection, outside-click deselection, Tab/arrow navigation, letter
+ * entry, Backspace clearing, and Create-mode spacebar hole toggling.
+ */
 export function Board({
   boardType,
   filteringLetters,
@@ -100,7 +111,8 @@ export function Board({
     };
   }, [setSelectedTile]);
 
-  // Updating the board
+  // Keyboard handling is centralized at window level so selected tiles behave
+  // like a focused grid without rendering individual text inputs.
   useEffect(() => {
     function isSelectableTile(idx: number) {
       return (

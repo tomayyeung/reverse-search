@@ -1,10 +1,15 @@
-/// For efficiency, our Trie uses a simple array to keep track of children
-/// This helper function converts a byte to an index in an array of children
+/// Converts a lowercase ASCII byte to a child-array index.
+///
+/// # Panics
+///
+/// Panics if `b` is not in `a..=z`. The trie is intentionally specialized for
+/// the normalized lowercase dictionary used by the game.
 fn idx(b: u8) -> usize {
     assert!(b.is_ascii_lowercase(), "Invalid bit found when indexing");
     (b - b'a') as usize
 }
 
+/// Internal trie node backed by a fixed lowercase ASCII child array.
 struct TrieNode {
     children: [Option<Box<TrieNode>>; 26],
     is_word: bool,
@@ -19,6 +24,10 @@ impl TrieNode {
     }
 
     #[allow(unused)]
+    /// Returns every suffix word reachable from this node.
+    ///
+    /// A terminal node contributes the empty suffix so callers can prepend their
+    /// existing prefix without losing words that end exactly at this node.
     fn return_words(&self) -> Vec<String> {
         let mut out = Vec::new();
         for n in 0..26_u8 {
@@ -40,13 +49,20 @@ impl TrieNode {
     }
 }
 
-/// Prefix tree - data structure used to efficiently store many words
+/// Prefix tree used to efficiently store lowercase ASCII dictionary words.
+///
+/// The trie is immutable after construction and only accepts bytes in `a..=z`.
+/// Lookup methods panic on non-lowercase ASCII input through the shared indexer.
 pub struct Trie {
     root: Box<TrieNode>,
 }
 
 impl Trie {
-    /// Construct a new Trie from a list of words
+    /// Constructs a trie from lowercase ASCII words.
+    ///
+    /// # Panics
+    ///
+    /// Panics if any word contains a byte outside `a..=z`.
     pub fn new(words: Vec<&str>) -> Self {
         let mut this = Trie {
             root: Box::new(TrieNode::new()),
@@ -64,8 +80,14 @@ impl Trie {
         this
     }
 
-    /// Search for all words in the Trie starting with prefix
-    /// not necessary for this game?
+    /// Searches for all words in the trie starting with `prefix`.
+    ///
+    /// This is currently only used by tests and debugging helpers; board search
+    /// uses [`Trie::is_prefix`] and [`Trie::is_word`] directly.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `prefix` contains a byte outside `a..=z`.
     #[allow(unused)]
     fn search(&self, prefix: &str) -> Vec<String> {
         let mut curr = &self.root;
@@ -82,7 +104,11 @@ impl Trie {
             .collect()
     }
 
-    /// Is this a word in the Trie?
+    /// Returns whether `word` is present as a complete dictionary word.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `word` contains a byte outside `a..=z`.
     pub fn is_word(&self, word: &str) -> bool {
         let mut curr = &self.root;
         for b in word.bytes() {
@@ -95,8 +121,13 @@ impl Trie {
         curr.is_word
     }
 
-    /// Are there words in the Trie starting with the given prefix?
-    /// Useful for discarding unused prefixes to limit DFS
+    /// Returns whether any dictionary word starts with `prefix`.
+    ///
+    /// The empty prefix is valid and returns `true`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `prefix` contains a byte outside `a..=z`.
     pub fn is_prefix(&self, prefix: &str) -> bool {
         let mut curr = &self.root;
         for b in prefix.bytes() {

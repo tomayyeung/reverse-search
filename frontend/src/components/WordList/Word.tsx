@@ -18,10 +18,16 @@ type PopupPosition = {
   left: number;
 };
 
+/** Plays dictionary pronunciation audio without blocking UI updates. */
 function playPronunciation(audio: string) {
   void new Audio(audio).play();
 }
 
+/** Clickable word chip that renders its definition popup in `document.body`.
+ *
+ * The popup uses fixed viewport coordinates so it can escape list overflow,
+ * reposition on scroll/resize, and close on outside pointerdown.
+ */
 export function Word({
   word,
   className,
@@ -69,6 +75,7 @@ export function Word({
       const top = hasBottomSpace
         ? bottomTop
         : Math.max(viewportPadding, aboveTop);
+      // Clamp horizontally and choose below/above placement based on viewport space.
       const left = Math.min(
         Math.max(viewportPadding, buttonRect.left),
         window.innerWidth - popupWidth - viewportPadding,

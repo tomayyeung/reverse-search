@@ -4,16 +4,18 @@ import styles from "./Popup.module.css";
 
 type PopupProps = {
   text: string;
-  /** used for non-confirmation */
+  /** Button text for informational popups without `onConfirm`. */
   closeText?: string;
   confirmText?: string;
-  /** used for confirmation */
+  /** Button text for confirmation popups with `onConfirm`. */
   cancelText?: string;
+  /** Keep open after confirm, useful when confirm opens an external auth modal. */
   closeOnConfirm?: boolean;
   onConfirm?: () => void;
   onCancel?: () => void;
 };
 
+/** Modal popup used for confirmations and simple informational messages. */
 export function Popup({
   text,
   closeText = "Close",

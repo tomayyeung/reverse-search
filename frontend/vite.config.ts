@@ -5,11 +5,12 @@ import path from 'path';
 import wasm from 'vite-plugin-wasm'
 import topLevelAwait from 'vite-plugin-top-level-await'
 
-// https://vite.dev/config/
 export default defineConfig({
   plugins: [
+    // React Compiler is enabled through the Babel preset until the plugin wires it directly.
     react(),
     babel({ presets: [reactCompilerPreset()] }),
+    // Required by the generated wasm-pack bundle in frontend/pkg.
     wasm(),
     topLevelAwait(),
   ],
@@ -22,6 +23,7 @@ export default defineConfig({
   },
   server: {
     proxy: {
+      // Match frontend deploy behavior while using the local Rust backend.
       "/api": "http://localhost:3000"
     },
     fs: {

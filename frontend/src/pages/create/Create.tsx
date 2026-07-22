@@ -24,6 +24,14 @@ type PendingSubmission = {
   name: string;
 };
 
+/** Puzzle creation page.
+ *
+ * Before locking the word list, the board is the solved answer and WASM `find`
+ * derives all available words. Locking stores those words in temporary WASM
+ * puzzle state, then `hardSet` changes meaning to the clue letters that will be
+ * visible to players. Submission sends both the solved `answer` and hidden-letter
+ * starting `letters` board.
+ */
 export default function CreatePage() {
   const { getToken } = useAuth();
   const [width, setWidth] = useState(3);
@@ -48,6 +56,7 @@ export default function CreatePage() {
   const words: Words = wordListDone
     ? {
         kind: "play",
+        // While selecting clues, check only letters still marked visible.
         ...(check(
           [...boardLetters]
             .map((letter, idx) => (hardSet[idx] ? letter : BLANK))
@@ -70,7 +79,7 @@ export default function CreatePage() {
     const nextWidth = Number(formData.get("width"));
     const nextHeight = Number(formData.get("height"));
 
-    // no changes were made
+    // Size changes are destructive, so defer them behind a confirmation popup.
     if (nextWidth === width && nextHeight === height) return;
 
     setPendingSize({ width: nextWidth, height: nextHeight });
@@ -79,6 +88,7 @@ export default function CreatePage() {
   async function submitPuzzle(formData: FormData) {
     if (submitted) return;
 
+    // The description modal collects the final field before the API call.
     setPendingSubmission({ name: String(formData.get("puzzle-name") ?? "") });
   }
 
@@ -197,6 +207,7 @@ export default function CreatePage() {
           className={styles.secondaryButton}
           onClick={() => {
             if (words.kind === "create") {
+              // Store the locked target words in WASM so clue toggles can reuse `check`.
               loadPuzzleForCreate(width, height, words.all);
             } else {
               setHardSet(new Array(width * height).fill(true));

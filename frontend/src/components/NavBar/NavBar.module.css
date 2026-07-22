@@ -104,6 +104,7 @@
 }
 
 .userButtonAvatar {
+  /* These classes are passed to Clerk's `appearance.elements` API. */
   width: 2.35rem;
   height: 2.35rem;
   border: 1px solid var(--border);
@@ -156,6 +157,7 @@
 }
 
 :global(.cl-userButtonPopoverCustomItemButton) {
+  /* Clerk currently requires global selectors for custom menu item internals. */
   min-height: 2.25rem;
   border-bottom: 1px solid var(--border);
   border-radius: 0;

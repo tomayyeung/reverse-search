@@ -3,12 +3,20 @@ import { useAuth } from "@clerk/react";
 
 import { API_URL } from "@/config";
 
+/** Authenticated app user shape returned by `/api/me`. */
 export type CurrentUser = {
   username: string;
   displayName: string | null;
   official: boolean;
 };
 
+/**
+ * Loads the signed-in user's synced app profile from `/api/me`.
+ *
+ * Returns `undefined` while Clerk is loading, while signed out, and after load
+ * failures; callers that need a separate loading/error state should fetch
+ * directly.
+ */
 export function useCurrentUser() {
   const { isLoaded, isSignedIn, getToken } = useAuth();
   const [currentUser, setCurrentUser] = useState<CurrentUser | undefined>();

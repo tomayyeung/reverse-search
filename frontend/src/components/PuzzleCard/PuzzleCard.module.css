@@ -26,6 +26,7 @@
 }
 
 .puzzleInfo {
+  /* Text sits above the overlay link but does not steal card clicks. */
   position: relative;
   z-index: 2;
   min-width: 0;
@@ -58,6 +59,7 @@
 }
 
 .modifyButton {
+  /* The edit button must remain clickable above the card-wide link. */
   position: relative;
   z-index: 3;
   border: 1px solid var(--border);
@@ -93,6 +95,7 @@
 }
 
 .cardLink {
+  /* Makes the whole card navigable without wrapping interactive children. */
   position: absolute;
   inset: 0;
   z-index: 1;

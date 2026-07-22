@@ -10,6 +10,7 @@ import styles from "./PuzzleCard.module.css";
 const PUZZLE_TITLE_LIMIT = 40;
 const DESCRIPTION_LIMIT = 60;
 
+/** Public puzzle summary returned by list, profile, and metadata update APIs. */
 export type PuzzleSummary = {
   id: string;
   name: string;
@@ -30,7 +31,9 @@ export type PuzzleSummary = {
 
 type PuzzleCardProps = {
   puzzle: PuzzleSummary;
+  /** Current user controls whether the modify action is visible. */
   currentUser?: CurrentUser;
+  /** Receives PATCH responses so parent lists can update in place. */
   onPuzzleUpdated?: (puzzle: PuzzleSummary) => void;
 };
 
@@ -139,6 +142,8 @@ export function PuzzleCard({
           </span>
         </div>
         <Link
+          // The card is a large link, while the modify button remains clickable
+          // above it through local z-index/pointer-event styles.
           className={styles.cardLink}
           aria-label={`Play ${puzzle.name}`}
           to={{ pathname: `/play/${puzzle.id}` }}

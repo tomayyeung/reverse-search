@@ -8,6 +8,7 @@ import { useCurrentUser } from "@/useCurrentUser";
 
 import styles from "./Home.module.css";
 
+/** Home page showing the latest public puzzle summaries. */
 export default function HomePage() {
   const currentUser = useCurrentUser();
   const [puzzles, setPuzzles] = useState<PuzzleSummary[]>([]);
@@ -61,6 +62,7 @@ export default function HomePage() {
   }, []);
 
   function updatePuzzle(updatedPuzzle: PuzzleSummary) {
+    // Keep list cards in sync after a creator/admin edits puzzle metadata.
     setPuzzles((currentPuzzles) =>
       currentPuzzles.map((puzzle) =>
         puzzle.id === updatedPuzzle.id ? updatedPuzzle : puzzle,

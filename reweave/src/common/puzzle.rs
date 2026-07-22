@@ -4,34 +4,54 @@ use std::fs::File;
 
 use serde::{Deserialize, Serialize};
 
-/// A struct for the output of comparing words in a board
-/// to words a puzzle requires.
+/// Result of comparing words currently present on a board to a puzzle's targets.
+///
+/// Ordering is unspecified because comparison is set-based.
 #[derive(Debug, Deserialize, PartialEq, Serialize)]
 pub struct Words {
+    /// Required puzzle words that are present on the current board.
     pub found: Vec<String>,
+    /// Required puzzle words that are absent from the current board.
     pub missing: Vec<String>,
+    /// Valid dictionary words present on the board but not required by the puzzle.
     pub extra: Vec<String>,
 }
 
-/// A list of words that the player uses to create
-/// a board.
+/// Persisted puzzle data shared by the backend, frontend, and WASM boundary.
+///
+/// `letters` and `answer` are row-major board strings of `width * height`
+/// characters. In serialized board strings, `_` represents a fillable blank and
+/// `!` represents a permanent hole.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Puzzle {
+    /// User-facing puzzle title.
     pub name: String,
+    /// Optional user-facing description shown on puzzle cards and play pages.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
+    /// Board width in columns.
     pub width: usize,
+    /// Board height in rows.
     pub height: usize,
-    /// holes, blanks are stored in letters as !, _
+    /// Starting board shown to the player, with hidden answer letters replaced by `_`.
     pub letters: String,
+    /// Required lowercase target words for the puzzle.
     pub words: HashSet<String>,
-    /// same as letters, but with letters for solution filled into blanks
+    /// Solved board, using the same row-major layout as `letters`.
     pub answer: String,
 }
 
 impl Puzzle {
-    /// Create a puzzle from a starting board and a list of words
-    /// For holes in the puzzle use '!'
+    /// Creates a puzzle from board strings and required words.
+    ///
+    /// This validates that `letters.len() == width * height`. It does not
+    /// currently validate `answer.len()`, board characters, word casing, or that
+    /// the required words are actually present in `answer`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the starting board length does not match the board
+    /// dimensions.
     pub fn create(
         name: String,
         description: Option<String>,
@@ -56,6 +76,10 @@ impl Puzzle {
         })
     }
 
+    /// Compares found board words against this puzzle's required word set.
+    ///
+    /// Duplicate `found_words` entries are ignored. Returned vector ordering is
+    /// unspecified.
     pub fn compare_found_words(&self, found_words: Vec<String>) -> Words {
         let found_words_set: HashSet<_> = found_words.into_iter().collect();
 
@@ -66,6 +90,10 @@ impl Puzzle {
         }
     }
 
+    /// Loads a puzzle from a JSON file matching the serialized [`Puzzle`] shape.
+    ///
+    /// This helper is intended for local tools and tests. File and JSON parsing
+    /// failures are returned to the caller.
     pub fn from_file(path: &str) -> Result<Self, Box<dyn Error>> {
         let data = File::open(path)?;
         let puzzle = serde_json::from_reader(data)?;

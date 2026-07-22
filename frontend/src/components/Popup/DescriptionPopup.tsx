@@ -11,6 +11,7 @@ type DescriptionPopupProps = {
   onCancel: () => void;
 };
 
+/** Modal textarea used to collect a short puzzle description before submission. */
 export function DescriptionPopup({
   text,
   maxLength,

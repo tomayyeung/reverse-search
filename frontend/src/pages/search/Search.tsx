@@ -8,14 +8,17 @@ import { useCurrentUser } from "@/useCurrentUser";
 
 import styles from "./Search.module.css";
 
+/** Selects whether the provided-letter filter maps to min or max API params. */
 type GivenMode = "atLeast" | "atMost";
 
+/** Adds a numeric query parameter only when the input is non-empty. */
 function addNumberParam(params: URLSearchParams, name: string, value: string) {
   if (value.trim() !== "") {
     params.set(name, value);
   }
 }
 
+/** Puzzle search page backed by `/api/puzzles` query parameters. */
 export default function SearchPage() {
   const currentUser = useCurrentUser();
   const [query, setQuery] = useState("");
@@ -49,6 +52,7 @@ export default function SearchPage() {
     addNumberParam(params, "maxHeight", maxHeight);
 
     if (givenPercent.trim() !== "") {
+      // The backend expects either a minimum or maximum given-letter percentage.
       params.set(
         givenMode === "atLeast" ? "minGivenPercent" : "maxGivenPercent",
         givenPercent,
@@ -78,6 +82,7 @@ export default function SearchPage() {
   }
 
   function updatePuzzle(updatedPuzzle: PuzzleSummary) {
+    // Search results can be updated by the shared PuzzleCard edit flow.
     setPuzzles((currentPuzzles) =>
       currentPuzzles.map((puzzle) =>
         puzzle.id === updatedPuzzle.id ? updatedPuzzle : puzzle,

@@ -13,8 +13,10 @@ import { check, load_puzzle as loadPuzzle } from "@wasm/frontend";
 import { Popup } from "@/components/Popup";
 import styles from "./Play.module.css";
 
+/** Pending reveal/reset action that must be confirmed in a popup. */
 type PendingAction = "solution" | "random" | "selected" | "clear";
 
+/** JSON shape returned by `GET /api/puzzle/:id`. */
 type PuzzleResponse = {
   name: string;
   description: string | null;
@@ -25,6 +27,7 @@ type PuzzleResponse = {
   error?: string;
 };
 
+/** Formats elapsed play time for the optional timer display. */
 function formatDuration(totalSeconds: number) {
   const seconds = totalSeconds % 60;
   const totalMinutes = Math.floor(totalSeconds / 60);
@@ -42,6 +45,7 @@ function formatDuration(totalSeconds: number) {
   return `${seconds}s`;
 }
 
+/** Sends a best-effort play/completion stat event to the backend. */
 async function incrementPuzzleStat(
   puzzleId: string | undefined,
   event: "play" | "completion",
@@ -66,6 +70,12 @@ async function incrementPuzzleStat(
   });
 }
 
+/** Puzzle play page.
+ *
+ * The puzzle must be loaded into WASM before `check(boardLetters)` is meaningful.
+ * Stats refs deduplicate play/completion events across renders, and completion
+ * is only counted after player interaction or hint usage.
+ */
 export default function PlayPage() {
   const { puzzleId } = useParams();
   const { getToken } = useAuth();
@@ -97,7 +107,9 @@ export default function PlayPage() {
   const [selectedTile, setSelectedTile] = useState(-1);
   const playCountedRef = useRef(false);
   const completionCountedRef = useRef(false);
+  // Prevent passive completions from being counted just because a loaded board is solved.
   const completionEligibleRef = useRef(false);
+  // The interval derives elapsed time from this timestamp to avoid drift.
   const timerStartedAtRef = useRef<number | undefined>(undefined);
 
   const words: PlayWords = puzzleFetched
@@ -130,12 +142,12 @@ export default function PlayPage() {
         }
 
         try {
-          // load puzzle for wasm
+          // Load into WASM first; render state depends on `check` being ready.
           loadPuzzle(puzzle);
 
           if (cancelled) return;
 
-          // then load puzzle for rendering
+          // Then load puzzle for React rendering.
           setPuzzleName(puzzle.name);
           setPuzzleDescription(puzzle.description);
           setWidth(puzzle.width);
@@ -143,13 +155,12 @@ export default function PlayPage() {
 
           const initialLetters = puzzle.letters;
 
-          // initialize board w/ letters
-          // any initial letters means they are hard set
+          // Any initial non-blank character is fixed for the player.
           setStartingLetters(initialLetters);
           setBoardLetters(initialLetters);
           setHardSet([...initialLetters].map((letter) => letter !== BLANK));
 
-          // initialize answer
+          // Reset per-puzzle play state and stat guards.
           setAnswer(puzzle.answer);
           setSelectedTile(-1);
           setUsedHint(false);
@@ -258,7 +269,8 @@ export default function PlayPage() {
     const revealedTile = answerTile === BLANK ? HOLE : answerTile;
     setBoardLetters([...boardLetters].with(idx, revealedTile).join(""));
     setHardSet(hardSet.with(idx, true));
-    setStartingLetters([...startingLetters].with(idx, revealedTile).join("")); // make it a permanent change for this session
+    // Revealed hints become fixed for this session, including future clears.
+    setStartingLetters([...startingLetters].with(idx, revealedTile).join(""));
     setUsedHint(true);
     completionEligibleRef.current = true;
   }

@@ -9,6 +9,7 @@ type MenuProps = {
   children: ReactNode;
 };
 
+/** Small disclosure menu. Clicking any panel content closes the menu. */
 export function Menu({ label, ariaLabel, children }: MenuProps) {
   const [isOpen, setIsOpen] = useState(false);
 

@@ -4,23 +4,43 @@ use serde::{Deserialize, Serialize};
 
 use super::words::*;
 
-/// A cell of the board, indexed by its coordinates
+/// A cell of the board, indexed by row and column.
+///
+/// The tuple order is `(row, column)`, both zero-indexed. This is intentionally
+/// not an `(x, y)` coordinate.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct BoardCell(pub usize, pub usize);
 
-/// A board of letters, some of which might not be filled in
+/// A rectangular board of lowercase letters and empty cells.
+///
+/// `cells` is stored row-major as `height` rows of `width` columns. Parsed
+/// blanks (`_`) and holes (`!`) are both stored as `None`, so this type does not
+/// preserve the visual distinction between fillable blanks and permanent holes.
 pub struct Board {
+    /// Number of columns in each row.
     pub width: usize,
+    /// Number of rows in the board.
     pub height: usize,
+    /// Row-major cell data. Each row has `width` entries and there are `height` rows.
     pub cells: Vec<Vec<Option<char>>>,
 }
 
+// Fillable blank in serialized board strings.
 const BLANK: char = '_';
+// Permanent hole in serialized board strings. Board search treats holes as empty.
 const HOLE: char = '!';
 
 impl Board {
-    /// Create a Board given a width, height, and a vector of characters
-    /// For an empty cell, pass in '_'
+    /// Creates a board from row-major serialized characters.
+    ///
+    /// Lowercase ASCII letters become playable cells. `_` and `!` become empty
+    /// cells, which means hole information is intentionally discarded for word
+    /// search.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when `chars.len()` does not equal `width * height`, or
+    /// when any non-empty character is not a lowercase ASCII letter.
     pub fn create(width: usize, height: usize, chars: Vec<char>) -> Result<Self, String> {
         if width * height != chars.len() {
             return Err(format!(
@@ -41,10 +61,9 @@ impl Board {
                 };
 
                 if c == BLANK || c == HOLE {
-                    // Empty cell / hole in puzzle
+                    // Blanks and holes are both unsearchable during word finding.
                     row.push(None);
                 } else if c.is_ascii_lowercase() {
-                    // Is valid letter
                     row.push(Some(c));
                 } else {
                     return Err(format!("Invalid character when creating board {c}"));
@@ -61,10 +80,16 @@ impl Board {
         })
     }
 
+    /// Returns the letter at `cell`, or `None` for out-of-bounds or empty cells.
+    ///
+    /// `BoardCell` coordinates are `(row, column)`.
     pub fn get(&self, cell: BoardCell) -> Option<char> {
         *self.cells.get(cell.0)?.get(cell.1)?
     }
 
+    /// Returns all board cells that do not contain a letter.
+    ///
+    /// Because [`Board`] stores blanks and holes as `None`, both are included.
     pub fn get_empty_cells(&self) -> Vec<BoardCell> {
         let mut out = Vec::new();
 
@@ -81,7 +106,11 @@ impl Board {
     }
 }
 
-/// Given a Board of letters and a word list, find all words
+/// Finds every dictionary word that can be traced on `board`.
+///
+/// Paths may move to any adjacent cell, including diagonals, and may not reuse a
+/// cell within one word. Empty cells and holes are skipped. The returned words
+/// are unique, but their order is unspecified.
 pub fn find_words(board: &Board, word_list: &Trie) -> Vec<String> {
     let mut out_hash_set = HashSet::new();
 
@@ -93,7 +122,7 @@ pub fn find_words(board: &Board, word_list: &Trie) -> Vec<String> {
         })
         .collect();
 
-    // First letter: one of the cells in the board
+    // Start a prefix-pruned DFS from every board cell.
     for c in cells {
         out_hash_set.extend(find_words_rec(
             c,
@@ -107,7 +136,7 @@ pub fn find_words(board: &Board, word_list: &Trie) -> Vec<String> {
     out_hash_set.into_iter().collect()
 }
 
-/// Adjacent cells
+/// Eight-neighbor adjacency offsets, including diagonals.
 const ADJ: [(isize, isize); 8] = [
     (1, 1),
     (1, 0),
@@ -119,8 +148,11 @@ const ADJ: [(isize, isize); 8] = [
     (0, 1),
 ];
 
-/// Recursive DFS to find all words in a board.
-/// Returns a Hash Set so that words are unique.
+/// Recursive DFS to find all words reachable from `curr_cell`.
+///
+/// `curr_s` and `visited` are mutated during descent and restored before return.
+/// Trie prefix checks prune branches that cannot form any dictionary word, and
+/// the returned set deduplicates words reachable by multiple paths.
 fn find_words_rec(
     curr_cell: BoardCell,
     curr_s: &mut String,
@@ -135,11 +167,11 @@ fn find_words_rec(
         return HashSet::new();
     };
 
-    // Add to curr string and visited
+    // Add this cell to the active path.
     curr_s.push(c);
     visited.push(curr_cell);
 
-    // Process current string
+    // Stop exploring as soon as the active path cannot become a word.
     if !word_list.is_prefix(curr_s) {
         curr_s.pop();
         visited.pop();
@@ -150,7 +182,7 @@ fn find_words_rec(
         out.insert(curr_s.clone());
     }
 
-    // Traverse adjacent cells
+    // Continue through adjacent cells that are in bounds and not already used.
     for (dx, dy) in ADJ {
         // Check for out of bounds
         if curr_cell.0 == 0 && dx == -1_isize {
@@ -179,7 +211,7 @@ fn find_words_rec(
         out.extend(find_words_rec(next_cell, curr_s, visited, board, word_list));
     }
 
-    // Remove from curr string and visited
+    // Backtrack before returning to the caller.
     curr_s.pop();
     visited.pop();
 

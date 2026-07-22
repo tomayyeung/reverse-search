@@ -12,6 +12,7 @@ import type {
 
 const NO_DEFINITION_TITLE = "No Definitions Found";
 
+/** Subset of dictionaryapi.dev response fields used by the definition popup. */
 type DictionaryEntry = {
   title?: string;
   sourceUrls?: string[];
@@ -27,6 +28,7 @@ type DictionaryEntry = {
   }[];
 };
 
+/** Extracts non-empty definition groups from dictionaryapi.dev entries. */
 function getDefinitionMeanings(data: DictionaryEntry[]): DefinitionMeaning[] {
   return data.flatMap((entry) =>
     (entry.meanings ?? []).flatMap((meaning) => {
@@ -46,6 +48,7 @@ function getDefinitionMeanings(data: DictionaryEntry[]): DefinitionMeaning[] {
   );
 }
 
+/** Chooses the richest available pronunciation, preferring text plus audio. */
 function getPronunciation(
   data: DictionaryEntry[],
 ): DefinitionPronunciation | undefined {
@@ -63,6 +66,7 @@ function getPronunciation(
   );
 }
 
+/** Deduplicates source URLs from all dictionary entries. */
 function getSourceUrls(data: DictionaryEntry[]): string[] {
   const sourceUrls = data
     .flatMap((entry) => entry.sourceUrls ?? [])
@@ -71,6 +75,7 @@ function getSourceUrls(data: DictionaryEntry[]): string[] {
   return Array.from(new Set(sourceUrls));
 }
 
+/** Groups words by length and sorts both groups and words ascending. */
 function groupAndSort(words: string[]): [number, string[]][] {
   const groups: Record<number, string[]> = {};
 
@@ -86,6 +91,7 @@ function groupAndSort(words: string[]): [number, string[]][] {
 
 type WordEntry = { word: string; kind: "found" | "missing" | "extra" };
 
+/** Merges found/missing/extra groups into one sorted play-mode display. */
 function mergeGroups(
   found: [number, string[]][],
   missing: [number, string[]][],
@@ -215,6 +221,11 @@ type WordListProps =
   | { listType: "Create"; words: CreateWords }
   | { listType: "Play"; words: PlayWords };
 
+/** Word list with dictionary lookup and per-word cache.
+ *
+ * Successful and not-found lookups are cached. Error states are retried the next
+ * time the word is selected.
+ */
 export function WordList(props: WordListProps) {
   const [definitions, setDefinitions] = useState<DictionaryCache>({});
   const [selectedWord, setSelectedWord] = useState<string | null>(null);

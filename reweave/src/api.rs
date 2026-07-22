@@ -1,9 +1,17 @@
+//! Shared endpoint handlers used by Vercel functions and the local backend.
+//!
+//! Files under `reweave/api/` are tiny Vercel entrypoints that delegate here so
+//! request parsing, auth, CORS, and response shapes stay consistent.
+
 use vercel_runtime::{Error, Request, Response, ResponseBody};
 
 use crate::auth::{optional_app_user, require_app_user};
 use crate::helper::*;
 
-/// Shared preflight OPTIONS response from allowed origin
+/// Builds the shared preflight `OPTIONS` response.
+///
+/// Requests without an allowed origin are rejected with the centralized CORS
+/// forbidden response.
 fn preflight_response(origin: Option<&str>) -> Result<Response<ResponseBody>, Error> {
     match origin {
         Some(origin) => cors_response(204, "", origin),
@@ -11,7 +19,9 @@ fn preflight_response(origin: Option<&str>) -> Result<Response<ResponseBody>, Er
     }
 }
 
-/// /api/health returns HTTP 200 with an "ok"
+/// Handles `GET /api/health`.
+///
+/// Returns HTTP `200` with the JSON string `"ok"`.
 pub async fn health(_req: Request) -> Result<Response<ResponseBody>, Error> {
     Ok(Response::builder()
         .status(200)
@@ -19,9 +29,11 @@ pub async fn health(_req: Request) -> Result<Response<ResponseBody>, Error> {
         .body(ResponseBody::from(serde_json::json!("ok")))?)
 }
 
-/// POST /api/create creates and adds to a database a puzzle given its details
+/// Handles `OPTIONS` and `POST /api/create`.
 ///
-/// Requires user token, otherwise returns unauthorized response
+/// `POST` requires a Clerk bearer token, validates a [`CreateInput`] body, and
+/// persists the puzzle for the authenticated creator. Success returns
+/// `{ "id": string }`; validation failures return `{ "error": string }`.
 pub async fn create_handler(req: Request) -> Result<Response<ResponseBody>, Error> {
     let origin = match require_allowed_origin(&req) {
         Ok(origin) => origin,
@@ -42,11 +54,10 @@ pub async fn create_handler(req: Request) -> Result<Response<ResponseBody>, Erro
     }
 }
 
-/// GET /api/me syncs a user's account between Clerk (auth provider) and our user database
+/// Handles `OPTIONS`, `GET`, and `PATCH /api/me`.
 ///
-/// PATCH /api/me modifies a user's display name
-///
-/// Requires a Clerk bearer token from the signed-in frontend user. Inserts or updates that Clerk user in the app’s local users table.
+/// Both non-`OPTIONS` methods require a Clerk bearer token and upsert the Clerk
+/// user into the local database before returning or updating app-user metadata.
 pub async fn me(req: Request) -> Result<Response<ResponseBody>, Error> {
     let origin = match require_allowed_origin(&req) {
         Ok(origin) => origin,
@@ -76,7 +87,9 @@ pub async fn me(req: Request) -> Result<Response<ResponseBody>, Error> {
     }
 }
 
-/// GET /api/profile returns the profile of a user with the given username
+/// Handles `OPTIONS` and public `GET /api/profile?username=<name>`.
+///
+/// Profile reads do not require authentication.
 pub async fn profile(req: Request) -> Result<Response<ResponseBody>, Error> {
     let origin = match require_allowed_origin(&req) {
         Ok(origin) => origin,
@@ -101,9 +114,11 @@ pub async fn profile(req: Request) -> Result<Response<ResponseBody>, Error> {
     }
 }
 
-/// GET /api/puzzle or GET /api/puzzle/:puzzle_id returns the puzzle with the given puzzle ID
+/// Handles `OPTIONS`, `GET`, and `PATCH /api/puzzle`.
 ///
-/// PATCH /api/puzzle modifies puzzle title and description for creators or admins
+/// `GET` accepts either `?puzzle_id=<id>` or a fallback `/api/puzzle/<id>` path
+/// segment. `PATCH` requires authentication and only permits the puzzle creator
+/// or an admin user to change title/description metadata.
 pub async fn puzzle(req: Request) -> Result<Response<ResponseBody>, Error> {
     let origin = match require_allowed_origin(&req) {
         Ok(origin) => origin,
@@ -141,7 +156,10 @@ pub async fn puzzle(req: Request) -> Result<Response<ResponseBody>, Error> {
     }
 }
 
-/// GET /api/puzzles returns a list of puzzles matching the given filters
+/// Handles `OPTIONS` and public `GET /api/puzzles`.
+///
+/// Supported filters include `limit`, text `query`, min/max dimensions, and
+/// min/max given-letter percentages.
 pub async fn puzzles(req: Request) -> Result<Response<ResponseBody>, Error> {
     let origin = match require_allowed_origin(&req) {
         Ok(origin) => origin,
@@ -173,7 +191,10 @@ pub async fn puzzles(req: Request) -> Result<Response<ResponseBody>, Error> {
     }
 }
 
-/// POST /api/stats adds a play or completion of the given puzzle, along with a user and other data
+/// Handles `OPTIONS` and `POST /api/stats`.
+///
+/// Records `"play"` or `"completion"` events. Authentication is optional; when
+/// present, completion events are linked to the signed-in user's profile.
 pub async fn stats(req: Request) -> Result<Response<ResponseBody>, Error> {
     let origin = match require_allowed_origin(&req) {
         Ok(origin) => origin,

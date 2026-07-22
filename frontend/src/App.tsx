@@ -11,6 +11,7 @@ const PlayPage = lazy(() => import("./pages/play/Play"));
 const SearchPage = lazy(() => import("./pages/search/Search"));
 const ProfilePage = lazy(() => import("./pages/profile/Profile"));
 
+/** Route guard for creation, opening Clerk sign-in before showing the page. */
 function ProtectedCreateRoute() {
   const navigate = useNavigate();
   const { isLoaded, isSignedIn } = useAuth();

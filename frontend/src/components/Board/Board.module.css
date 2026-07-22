@@ -57,6 +57,7 @@
 
 
 .boardFrame {
+  /* Container units let the board fit both wide and tall page layouts. */
   container-type: size;
   display: flex;
   inline-size: 100%;
@@ -69,6 +70,7 @@
 }
 
 .board {
+  /* Tile size is constrained by whichever board axis is tighter. */
   --board-padding: clamp(8px, min(2.4cqw, 2.4cqh), 18px);
   --tile-gap: clamp(4px, min(calc(6cqw / var(--board-width)), calc(6cqh / var(--board-height))), 10px);
   --tile-size-by-width: calc(

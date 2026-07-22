@@ -9,6 +9,7 @@ import { useCurrentUser } from "@/useCurrentUser";
 
 import styles from "./Profile.module.css";
 
+/** Profile completion entry returned by `/api/profile`. */
 type CompletedPuzzle = {
   puzzle: PuzzleSummary;
   completionTimeSeconds: number;
@@ -16,6 +17,7 @@ type CompletedPuzzle = {
   completedAt: string;
 };
 
+/** Public profile response including created and completed puzzles. */
 type ProfileResponse = {
   user: {
     username: string;
@@ -28,12 +30,14 @@ type ProfileResponse = {
   completedPuzzles: CompletedPuzzle[];
 };
 
+/** `/api/me` response used after editing the current user's display name. */
 type MeResponse = {
   username: string;
   displayName: string | null;
   official: boolean;
 };
 
+/** Formats backend timestamp strings for profile display. */
 function formatDate(value: string) {
   const date = new Date(value);
 
@@ -48,6 +52,7 @@ function formatDate(value: string) {
   });
 }
 
+/** Formats completion times shown in profile history. */
 function formatDuration(totalSeconds: number) {
   const seconds = totalSeconds % 60;
   const totalMinutes = Math.floor(totalSeconds / 60);
@@ -65,6 +70,7 @@ function formatDuration(totalSeconds: number) {
   return `${seconds}s`;
 }
 
+/** Public profile page with owner-only display-name editing. */
 export default function ProfilePage() {
   const { user } = useParams();
   const { getToken } = useAuth();
@@ -133,6 +139,7 @@ export default function ProfilePage() {
     profile !== undefined && currentUser?.username === profile.user.username;
 
   function updatePuzzle(updatedPuzzle: PuzzleSummary) {
+    // A puzzle can appear in both profile lists, so update both references.
     setProfile((currentProfile) => {
       if (currentProfile === undefined) {
         return currentProfile;

@@ -1,3 +1,9 @@
+//! PostgreSQL persistence for puzzles, users, profiles, and stats.
+//!
+//! The functions here assume the tables from `schema.sql` exist. Endpoint helper
+//! code is responsible for API-level validation and permission checks unless a
+//! function documents its own authorization clause.
+
 use serde::Deserialize;
 use sqlx::{PgPool, Postgres, QueryBuilder};
 use std::error::Error;
@@ -6,22 +12,27 @@ use uuid::Uuid;
 
 use crate::common::puzzle::Puzzle;
 
+/// Process-global lazy PostgreSQL pool.
+///
+/// Initialization reads `DATABASE_URL` and creates a lazy `sqlx` pool. Missing
+/// or invalid environment configuration will panic during first access.
 pub static PUZZLES_POOL: OnceLock<PgPool> = OnceLock::new();
 
+/// Puzzle stat mutation to apply to `puzzle_stats`.
 #[derive(Clone, Copy)]
 pub enum PuzzleStat {
+    /// Increment aggregate play count only.
     Plays,
+    /// Increment completion count and insert a completion event row.
     Completions {
+        /// User-visible solve duration in seconds.
         completion_time_seconds: u32,
+        /// Whether the solve used any reveal/hint action.
         used_hint: bool,
     },
 }
 
-/**
- * Necessary structs for puzzles
- */
-
-/// A row from a table representing a puzzle, used when fetching a puzzle to play
+/// SQL row used when fetching a full playable puzzle.
 #[derive(sqlx::FromRow)]
 struct PuzzleRow {
     pub name: String,
@@ -33,7 +44,9 @@ struct PuzzleRow {
     pub answer: String,
 }
 
-/// A row from a table representing the summary of a puzzle, used when listing puzzles
+/// SQL row used when listing puzzle summaries.
+///
+/// Field names mirror SQL aliases in the list/profile queries.
 #[derive(sqlx::FromRow)]
 struct PuzzleSummaryRow {
     pub id: Uuid,
@@ -51,15 +64,22 @@ struct PuzzleSummaryRow {
     pub creator_role: String,
 }
 
+/// SQL row for a public user profile.
 #[derive(sqlx::FromRow)]
 pub struct UserProfileRecord {
+    /// Stable public username.
     pub username: String,
+    /// Optional user-edited display name.
     pub display_name: Option<String>,
+    /// Avatar URL synchronized from Clerk.
     pub avatar_url: Option<String>,
+    /// App role, where `admin` marks official users.
     pub role: String,
+    /// Database creation timestamp formatted by PostgreSQL.
     pub created_at: String,
 }
 
+/// SQL row joining a completion event with the completed puzzle summary.
 #[derive(sqlx::FromRow)]
 struct CompletedPuzzleRow {
     pub id: Uuid,
@@ -80,32 +100,53 @@ struct CompletedPuzzleRow {
     pub completed_at: String,
 }
 
-/// A summary of a puzzle, used when listing puzzles
+/// Internal puzzle summary record returned from database queries.
+///
+/// This is converted into public API response types in `helper.rs`.
 #[derive(Deserialize)]
 pub struct PuzzleSummaryRecord {
+    /// Puzzle UUID serialized as a string.
     pub id: String,
+    /// Puzzle title.
     pub name: String,
+    /// Optional puzzle description.
     pub description: Option<String>,
+    /// Board width in columns.
     pub width: usize,
+    /// Board height in rows.
     pub height: usize,
+    /// Starting board string used to calculate given-letter percentage.
     pub letters: String,
+    /// Aggregate play count.
     pub plays: u64,
+    /// Aggregate completion count.
     pub completions: u64,
+    /// Aggregate like count, reserved for future UI.
     pub likes: u64,
+    /// Puzzle creation timestamp formatted by PostgreSQL.
     pub created_at: String,
+    /// Creator's public username.
     pub creator_username: String,
+    /// Creator's optional display name.
     pub creator_display_name: Option<String>,
+    /// Creator role, where `admin` marks official puzzles.
     pub creator_role: String,
 }
 
+/// Internal profile completion record.
 pub struct CompletedPuzzleRecord {
+    /// Completed puzzle summary.
     pub puzzle: PuzzleSummaryRecord,
+    /// Completion duration in seconds.
     pub completion_time_seconds: u32,
+    /// Whether the completion used a reveal/hint.
     pub used_hint: bool,
+    /// Completion-event timestamp formatted by PostgreSQL.
     pub completed_at: String,
 }
 
 impl From<PuzzleSummaryRow> for PuzzleSummaryRecord {
+    /// Converts SQL integer/UUID fields into API-facing Rust types.
     fn from(row: PuzzleSummaryRow) -> Self {
         PuzzleSummaryRecord {
             id: row.id.to_string(),
@@ -126,6 +167,7 @@ impl From<PuzzleSummaryRow> for PuzzleSummaryRecord {
 }
 
 impl From<CompletedPuzzleRow> for CompletedPuzzleRecord {
+    /// Splits the joined completion row into puzzle and event records.
     fn from(row: CompletedPuzzleRow) -> Self {
         CompletedPuzzleRecord {
             puzzle: PuzzleSummaryRecord {
@@ -150,23 +192,38 @@ impl From<CompletedPuzzleRow> for CompletedPuzzleRecord {
     }
 }
 
+/// Local authenticated user record returned after Clerk sync.
 #[derive(Clone)]
 pub struct AppUser {
+    /// Local database user UUID.
     pub id: Uuid,
+    /// Stable public username.
     pub username: String,
+    /// Optional display name edited by the user.
     pub display_name: Option<String>,
+    /// Authorization role, where `admin` can modify official content.
     pub role: String,
 }
 
+/// Clerk user data used to insert or update a local app user.
 pub struct ClerkUserData {
+    /// Clerk user ID from JWT `sub` or Clerk API response.
     pub clerk_user_id: String,
+    /// Optional Clerk username. Missing usernames receive a generated fallback.
     pub username: Option<String>,
+    /// Optional display name from Clerk.
     pub display_name: Option<String>,
+    /// Optional avatar URL from Clerk.
     pub avatar_url: Option<String>,
+    /// Optional primary email from Clerk.
     pub email: Option<String>,
 }
 
 impl From<PuzzleRow> for Puzzle {
+    /// Converts a database row into the shared puzzle model.
+    ///
+    /// Database integer dimensions are cast to `usize`, and the SQL word array is
+    /// collected into the puzzle's `HashSet`.
     fn from(row: PuzzleRow) -> Self {
         Puzzle {
             name: row.name,
@@ -180,18 +237,21 @@ impl From<PuzzleRow> for Puzzle {
     }
 }
 
-/**
- * Structs and helper functions for searching for puzzles
- */
-
+/// Filters used by puzzle-list database queries.
 pub struct PuzzleRecordFilters {
+    /// Case-insensitive text query over puzzle name and description.
     pub query: Option<String>,
+    /// Orientation-insensitive minimum `(short_side, long_side)` bounds.
     pub min_dimensions: Option<(usize, usize)>,
+    /// Orientation-insensitive maximum `(short_side, long_side)` bounds.
     pub max_dimensions: Option<(usize, usize)>,
+    /// Minimum rounded percentage of non-hidden starting letters.
     pub min_given_percent: Option<u8>,
+    /// Maximum rounded percentage of non-hidden starting letters.
     pub max_given_percent: Option<u8>,
 }
 
+/// Appends `WHERE` or `AND` while constructing dynamic SQL filters.
 fn push_where_clause(query: &mut QueryBuilder<Postgres>, has_where: &mut bool) {
     if *has_where {
         query.push(" AND ");
@@ -201,15 +261,20 @@ fn push_where_clause(query: &mut QueryBuilder<Postgres>, has_where: &mut bool) {
     }
 }
 
-/**
- * General-use necessary functions
- */
-
+/// Returns the global puzzle database pool.
+///
+/// # Panics
+///
+/// Panics if `DATABASE_URL` is missing or `sqlx` cannot create a lazy pool from it.
 pub fn get_puzzles_pool() -> &'static PgPool {
     PUZZLES_POOL
         .get_or_init(|| PgPool::connect_lazy(&std::env::var("DATABASE_URL").unwrap()).unwrap())
 }
 
+/// Builds a stable fallback username from a Clerk user ID.
+///
+/// Only ASCII alphanumeric characters are kept, and at most 12 are used, so the
+/// fallback is safe to expose publicly as `user_<suffix>`.
 fn fallback_username(clerk_user_id: &str) -> String {
     let suffix: String = clerk_user_id
         .chars()
@@ -224,6 +289,11 @@ fn fallback_username(clerk_user_id: &str) -> String {
     }
 }
 
+/// Inserts or updates a local user from Clerk data.
+///
+/// Existing generated usernames may be replaced by a later real Clerk username;
+/// user-edited usernames are preserved. Avatar, email, and `updated_at` are kept
+/// in sync with Clerk data.
 pub async fn ensure_app_user(user: ClerkUserData) -> Result<AppUser, Box<dyn Error>> {
     let has_clerk_username = user
         .username
@@ -254,6 +324,7 @@ pub async fn ensure_app_user(user: ClerkUserData) -> Result<AppUser, Box<dyn Err
     })
 }
 
+/// Updates a local user's optional display name and returns the updated user.
 pub async fn update_user_display_name(
     user_id: Uuid,
     display_name: Option<String>,
@@ -274,6 +345,10 @@ pub async fn update_user_display_name(
     })
 }
 
+/// Updates puzzle metadata when `user` is the creator or an admin.
+///
+/// Returns `Ok(None)` when the puzzle ID is valid but permission fails or no row
+/// matches. Invalid UUID strings return an error.
 pub async fn update_puzzle_metadata(
     puzzle_id: &str,
     name: String,
@@ -295,6 +370,10 @@ pub async fn update_puzzle_metadata(
     Ok(row.map(PuzzleSummaryRecord::from))
 }
 
+/// Loads a playable puzzle by UUID string.
+///
+/// Invalid UUIDs, missing rows, and query failures are collapsed to `None` for
+/// API-level invalid-ID handling.
 pub async fn get_puzzle(puzzle_id: &str) -> Option<Puzzle> {
     let Ok(puzzle_row) = sqlx::query_as::<_, PuzzleRow>(
         "SELECT name, description, width, height, letters, words, answer FROM puzzles WHERE id = $1",
@@ -309,6 +388,9 @@ pub async fn get_puzzle(puzzle_id: &str) -> Option<Puzzle> {
     Some(Puzzle::from(puzzle_row))
 }
 
+/// Lists puzzle summaries matching dynamic search filters.
+///
+/// Results are ordered by puzzle name ascending and capped by `limit`.
 pub async fn list_puzzle_records(
     limit: usize,
     filters: PuzzleRecordFilters,
@@ -347,6 +429,8 @@ pub async fn list_puzzle_records(
             .push_bind(max_large as i32);
     }
 
+    // Round the given-letter percentage using integer arithmetic so filtering
+    // matches the public API summary calculation.
     let percent_sql = "((length(replace(replace(p.letters, '_', ''), '!', '')) * 100 + (p.width * p.height / 2)) / (p.width * p.height))";
 
     if let Some(min_given_percent) = filters.min_given_percent {
@@ -377,6 +461,7 @@ pub async fn list_puzzle_records(
     Ok(rows.into_iter().map(PuzzleSummaryRecord::from).collect())
 }
 
+/// Loads a public profile row by username.
 pub async fn get_user_profile_record(
     username: &str,
 ) -> Result<Option<UserProfileRecord>, Box<dyn Error>> {
@@ -390,6 +475,7 @@ pub async fn get_user_profile_record(
     Ok(profile)
 }
 
+/// Lists puzzles created by `username`, newest first.
 pub async fn list_created_puzzle_records(
     username: &str,
 ) -> Result<Vec<PuzzleSummaryRecord>, Box<dyn Error>> {
@@ -403,6 +489,7 @@ pub async fn list_created_puzzle_records(
     Ok(rows.into_iter().map(PuzzleSummaryRecord::from).collect())
 }
 
+/// Lists puzzle completion events for `username`, newest first.
 pub async fn list_completed_puzzle_records(
     username: &str,
 ) -> Result<Vec<CompletedPuzzleRecord>, Box<dyn Error>> {
@@ -416,6 +503,9 @@ pub async fn list_completed_puzzle_records(
     Ok(rows.into_iter().map(CompletedPuzzleRecord::from).collect())
 }
 
+/// Inserts a puzzle and initializes its aggregate stats row in one transaction.
+///
+/// Returns the generated puzzle UUID as a string.
 pub async fn insert_puzzle_into_db(
     puzzle: Puzzle,
     creator: &AppUser,
@@ -447,6 +537,10 @@ pub async fn insert_puzzle_into_db(
     Ok(uuid.to_string())
 }
 
+/// Applies a play or completion stat mutation to a puzzle.
+///
+/// Completion mutations insert an event row inside the same transaction as the
+/// aggregate count update. Signed-out completions store `NULL` for `user_id`.
 pub async fn increment_puzzle_stat(
     puzzle_id: &str,
     stat: PuzzleStat,
