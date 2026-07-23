@@ -42,6 +42,7 @@ export default function CreatePage() {
   const [hardSet, setHardSet] = useState<boolean[]>(
     new Array(width * height).fill(true),
   );
+  const [selectedTile, setSelectedTile] = useState(-1);
   const [puzzleId, setPuzzleId] = useState<string | undefined>();
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | undefined>();
@@ -71,6 +72,7 @@ export default function CreatePage() {
 
     setBoardLetters("_".repeat(width * height));
     setHardSet(new Array(width * height).fill(true));
+    setSelectedTile(-1);
   }
 
   function updateSize(formData: FormData) {
@@ -189,6 +191,8 @@ export default function CreatePage() {
             hardSet={hardSet}
             setBoardLetters={setBoardLetters}
             setHardSet={setHardSet}
+            selectedTile={selectedTile}
+            setSelectedTile={setSelectedTile}
           />
         </div>
 
@@ -209,6 +213,7 @@ export default function CreatePage() {
             if (words.kind === "create") {
               // Store the locked target words in WASM so clue toggles can reuse `check`.
               loadPuzzleForCreate(width, height, words.all);
+              setSelectedTile(-1);
             } else {
               setHardSet(new Array(width * height).fill(true));
             }

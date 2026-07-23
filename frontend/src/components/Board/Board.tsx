@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import styles from "./Board.module.css";
 
@@ -71,8 +71,8 @@ function Tile({
 /** Interactive board for puzzle creation and play.
  *
  * The board is controlled by a row-major `boardLetters` string. It supports
- * click selection, outside-click deselection, Tab/arrow navigation, letter
- * entry, Backspace clearing, and Create-mode spacebar hole toggling.
+ * click selection, Tab/arrow navigation, letter entry, Backspace clearing,
+ * and Create-mode spacebar hole toggling.
  */
 export function Board({
   boardType,
@@ -87,29 +87,9 @@ export function Board({
   setSelectedTile: controlledSetSelectedTile,
   onUserLetterPlaced,
 }: BoardProps) {
-  const boardRef = useRef<HTMLDivElement>(null);
   const [internalSelectedTile, setInternalSelectedTile] = useState(-1);
   const selectedTile = controlledSelectedTile ?? internalSelectedTile;
   const setSelectedTile = controlledSetSelectedTile ?? setInternalSelectedTile;
-
-  // Deselect tile when clicking out of the board
-  useEffect(() => {
-    function deselectOnOutsideClick(event: PointerEvent) {
-      const target = event.target;
-
-      if (!(target instanceof Node) || boardRef.current?.contains(target)) {
-        return;
-      }
-
-      setSelectedTile(-1);
-    }
-
-    document.addEventListener("pointerdown", deselectOnOutsideClick);
-
-    return () => {
-      document.removeEventListener("pointerdown", deselectOnOutsideClick);
-    };
-  }, [setSelectedTile]);
 
   // Keyboard handling is centralized at window level so selected tiles behave
   // like a focused grid without rendering individual text inputs.
@@ -254,7 +234,7 @@ export function Board({
 
   return (
     <div className={styles.boardFrame}>
-      <div ref={boardRef} className={styles.board} style={boardStyle}>
+      <div className={styles.board} style={boardStyle}>
         {[...boardLetters].map((letter, i) => (
           <Tile
             boardType={boardType}
