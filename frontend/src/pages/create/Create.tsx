@@ -225,10 +225,10 @@ export default function CreatePage() {
 
         {/* Puzzle submission */}
         <form
-          style={{ display: wordListDone ? "flex" : "none" }}
-          className={styles.form}
+          className={`${styles.form} ${wordListDone ? "" : styles.disabledForm}`}
           action={submitPuzzle}
           autoComplete="off"
+          aria-disabled={!wordListDone}
         >
           <div className={styles.formField}>
             <div className={styles.fieldHeader}>
@@ -241,11 +241,14 @@ export default function CreatePage() {
               id="puzzle-name"
               name="puzzle-name"
               value={puzzleName}
+              disabled={!wordListDone}
               maxLength={PUZZLE_TITLE_LIMIT}
               onChange={(event) => setPuzzleName(event.target.value)}
             />
           </div>
-          <button type="submit">Submit puzzle</button>
+          <button type="submit" disabled={!wordListDone}>
+            Submit puzzle
+          </button>
         </form>
       </div>
 
